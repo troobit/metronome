@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#3b82f6"/>
+
+  <!-- Metronome base -->
+  <path d="M 200 420 L 312 420 L 280 300 L 232 300 Z" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Metronome pendulum -->
+  <rect x="252" y="180" width="8" height="130" fill="#ffffff" rx="4"/>
+
+  <!-- Pendulum weight -->
+  <circle cx="256" cy="200" r="20" fill="#fbbf24"/>
+
+  <!-- Metronome top -->
+  <path d="M 232 300 L 280 300 L 256 180 Z" fill="#ffffff"/>
+
+  <!-- Beat marks -->
+  <circle cx="180" cy="256" r="8" fill="#fbbf24" opacity="0.6"/>
+  <circle cx="332" cy="256" r="8" fill="#fbbf24" opacity="0.6"/>
+</svg>

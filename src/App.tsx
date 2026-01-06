@@ -122,8 +122,28 @@ function App() {
       setCurrentBeat(0)
       setCurrentAccentType('none')
     } else {
+      // Before starting, check if AudioContext needs to be resumed (iOS requirement)
+      try {
+        const resumed = await engineRef.current.resumeIfSuspended()
+        if (!resumed) {
+          // AudioContext couldn't be resumed - show error
+          setInterruptionMessage(
+            'Unable to resume audio. Please refresh the page and try again.'
+          )
+          return
+        }
+      } catch (error) {
+        console.error('Failed to resume AudioContext:', error)
+        setInterruptionMessage(
+          'Audio system error. Please refresh the page and try again.'
+        )
+        return
+      }
+
       engineRef.current.start()
       setIsPlaying(true)
+      // Clear any existing interruption message when successfully starting
+      setInterruptionMessage(null)
     }
   }
 
@@ -420,10 +440,10 @@ function App() {
     >
       {/* Audio Interruption Notification */}
       {interruptionMessage && (
-        <div className="fixed top-4 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-lg bg-yellow-500 p-4 text-white shadow-2xl animate-slide-in max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 flex-1">
+        <div className="fixed top-4 left-4 right-4 z-50 rounded-lg bg-yellow-500 p-4 text-white shadow-2xl animate-slide-in max-w-2xl mx-auto">
+          <div className="flex items-start gap-3">
             <svg
-              className="h-6 w-6 flex-shrink-0"
+              className="h-6 w-6 shrink-0 mt-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -435,30 +455,33 @@ function App() {
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Audio Interrupted</p>
               <p className="text-xs mt-1 opacity-90">{interruptionMessage}</p>
+              <p className="text-xs mt-2 opacity-90 font-medium">
+                Tap "Start" below to resume the metronome
+              </p>
             </div>
-          </div>
-          <button
-            onClick={() => setInterruptionMessage(null)}
-            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-yellow-600 transition-colors flex-shrink-0"
-            aria-label="Dismiss notification"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <button
+              onClick={() => setInterruptionMessage(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-yellow-600 transition-colors shrink-0"
+              aria-label="Dismiss notification"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
       <div

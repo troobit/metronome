@@ -52,6 +52,8 @@ export interface IAudioEngine {
 
   /** Initialize the audio context (requires user gesture) */
   init(): Promise<void>
+  /** Resume AudioContext if suspended (iOS requirement after interruption) */
+  resumeIfSuspended(): Promise<boolean>
   /** Start playback */
   start(): void
   /** Stop playback */

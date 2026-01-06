@@ -162,6 +162,38 @@ export class AudioEngine implements IAudioEngine {
   }
 
   /**
+   * Resume AudioContext if it's suspended (required on iOS after interruption)
+   * Must be called in response to a user gesture
+   * @returns Promise<boolean> - true if resumed or already running, false if failed
+   */
+  async resumeIfSuspended(): Promise<boolean> {
+    if (!this.audioContext) {
+      console.error('AudioContext not initialized')
+      return false
+    }
+
+    const state = this.audioContext.state
+    console.log(`AudioContext state before resume: ${state}`)
+
+    if (state === 'suspended' || state === 'interrupted') {
+      try {
+        await this.audioContext.resume()
+        console.log(
+          `AudioContext resumed successfully. New state: ${this.audioContext.state}`
+        )
+        this._state = this.audioContext.state as AudioEngineState
+        return this.audioContext.state === 'running'
+      } catch (error) {
+        console.error('Failed to resume AudioContext:', error)
+        return false
+      }
+    }
+
+    // Already running or closed
+    return state === 'running'
+  }
+
+  /**
    * Start metronome playback
    */
   start(): void {
