@@ -8,9 +8,20 @@
 		step?: number | 'any';
 		onChange: (value: number) => void;
 		showLabels?: boolean;
+		onInteractionStart?: () => void;
+		onInteractionEnd?: () => void;
 	}
 
-	let { value, min, max, step = 1, onChange, showLabels = true }: Props = $props();
+	let {
+		value,
+		min,
+		max,
+		step = 1,
+		onChange,
+		showLabels = true,
+		onInteractionStart,
+		onInteractionEnd
+	}: Props = $props();
 
 	const theme = useThemeContext();
 
@@ -19,7 +30,15 @@
 		onChange(Number(target.value));
 	}
 
-	const sliderClasses = $derived(() => {
+	function handleInteractionStart() {
+		onInteractionStart?.();
+	}
+
+	function handleInteractionEnd() {
+		onInteractionEnd?.();
+	}
+
+	const sliderClasses = $derived.by(() => {
 		const baseClasses = 'h-2 w-full cursor-pointer appearance-none rounded-lg';
 		return theme.isDark
 			? `${baseClasses} bg-[rgb(var(--color-surface-secondary))]`
@@ -35,7 +54,11 @@
 		{step}
 		{value}
 		oninput={handleInput}
-		class={sliderClasses()}
+		onmousedown={handleInteractionStart}
+		onmouseup={handleInteractionEnd}
+		ontouchstart={handleInteractionStart}
+		ontouchend={handleInteractionEnd}
+		class={sliderClasses}
 	/>
 
 	{#if showLabels}

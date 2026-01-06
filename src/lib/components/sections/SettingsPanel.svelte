@@ -43,7 +43,6 @@
 		label="Export Settings"
 		onClick={onExport}
 		ariaLabel="Export settings"
-		title="Export settings to JSON file"
 	/>
 
 	<SecondaryButton
@@ -51,7 +50,6 @@
 		label="Import Settings"
 		onClick={() => fileInputElement?.click()}
 		ariaLabel="Import settings"
-		title="Import settings from JSON file"
 	/>
 
 	<input

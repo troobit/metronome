@@ -419,9 +419,16 @@
       onDenominatorKeyDown={handleDenominatorKeyDown}
     />
 
-    <!-- Volume control - hidden on mobile, visible on desktop -->
-    <div class="hidden md:block">
-      <VolumeControl volume={volume} onVolumeChange={updateVolume} />
+    <!-- Volume control with BPM toggle on same row - hidden on mobile, visible on desktop -->
+    <div class="hidden md:flex items-center gap-4">
+      <VolumeControl volume={volume} onVolumeChange={updateVolume} compact={true} />
+      <LinkTempoToggle
+        linkTempo={linkTempo}
+        onLinkTempoChange={(newValue) => {
+          linkTempo = newValue
+          saveLinkTempoToStorage(newValue)
+        }}
+      />
     </div>
 
     <ActionButton variant={isPlaying ? 'danger' : 'success'} onClick={handleStartStop}>
@@ -435,17 +442,6 @@
         Click Start to initialize audio (requires user interaction)
       </p>
     {/if}
-
-    <!-- Link BPM toggle - hidden on mobile, visible on desktop -->
-    <div class="hidden md:block">
-      <LinkTempoToggle
-        linkTempo={linkTempo}
-        onLinkTempoChange={(newValue) => {
-          linkTempo = newValue
-          saveLinkTempoToStorage(newValue)
-        }}
-      />
-    </div>
 
     <!-- Settings panel - hidden on mobile, visible on desktop -->
     <div class="hidden md:block">

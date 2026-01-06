@@ -7,10 +7,9 @@
 		label: string;
 		onClick: () => void;
 		ariaLabel?: string;
-		title?: string;
 	}
 
-	let { icon, label, onClick, ariaLabel, title }: Props = $props();
+	let { icon, label, onClick, ariaLabel }: Props = $props();
 
 	const theme = useThemeContext();
 
@@ -30,7 +29,6 @@
 	class={buttonClasses()}
 	onclick={onClick}
 	aria-label={ariaLabel || label}
-	title={title || label}
 >
 	{@render icon()}
 	{label}

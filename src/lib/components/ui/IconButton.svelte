@@ -6,11 +6,10 @@
 		icon: Snippet;
 		onClick: () => void;
 		ariaLabel: string;
-		title?: string;
 		variant?: 'theme-light' | 'theme-dark' | 'volume';
 	}
 
-	let { icon, onClick, ariaLabel, title, variant = 'volume' }: Props = $props();
+	let { icon, onClick, ariaLabel, variant = 'volume' }: Props = $props();
 
 	const theme = useThemeContext();
 
@@ -40,7 +39,6 @@
 	class={buttonClasses()}
 	onclick={onClick}
 	aria-label={ariaLabel}
-	title={title || ariaLabel}
 >
 	{@render icon()}
 </button>

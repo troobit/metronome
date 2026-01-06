@@ -6,14 +6,16 @@
 	interface Props {
 		volume: number;
 		onVolumeChange: (newVolume: number) => void;
+		compact?: boolean;
 	}
 
-	let { volume, onVolumeChange }: Props = $props();
+	let { volume, onVolumeChange, compact = false }: Props = $props();
 
 	const theme = useThemeContext();
+	let isInteracting = $state(false);
 
 	// Derive which icon to show based on volume
-	const currentIcon = $derived(() => {
+	const currentIcon = $derived.by(() => {
 		if (volume === 0) return mutedIcon;
 		if (volume < 0.5) return lowVolumeIcon;
 		return highVolumeIcon;
@@ -59,35 +61,47 @@
 	</svg>
 {/snippet}
 
-<div class="space-y-3">
-	<label
-		class={`text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
-	>
-		Volume
-	</label>
+<div class={compact ? '' : 'space-y-3'}>
+	{#if !compact}
+		<div
+			class={`text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
+		>
+			Volume
+		</div>
+	{/if}
 
 	<div class="flex items-center gap-3">
 		<IconButton
-			icon={currentIcon()}
+			icon={currentIcon}
 			onClick={() => onVolumeChange(0)}
 			variant="volume"
 			ariaLabel="Mute"
-			title="Mute"
 		/>
 
-		<RangeSlider
-			value={volume}
-			min={0}
-			max={1}
-			step={0.01}
-			onChange={onVolumeChange}
-			showLabels={false}
-		/>
+		<div class="relative flex-1">
+			<RangeSlider
+				value={volume}
+				min={0}
+				max={1}
+				step={0.01}
+				onChange={onVolumeChange}
+				showLabels={false}
+				onInteractionStart={() => (isInteracting = true)}
+				onInteractionEnd={() => (isInteracting = false)}
+			/>
+		</div>
 
-		<span
-			class={`w-12 text-right text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
-		>
-			{Math.round(volume * 100)}%
-		</span>
+		<!-- Percentage display - animated in/out on interaction -->
+		<div class="relative w-12 overflow-hidden">
+			<span
+				class={`absolute right-0 text-right text-sm font-medium transition-all duration-300 ${
+					isInteracting
+						? 'opacity-100 translate-x-0'
+						: 'opacity-0 translate-x-4 pointer-events-none'
+				} ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
+			>
+				{Math.round(volume * 100)}%
+			</span>
+		</div>
 	</div>
 </div>

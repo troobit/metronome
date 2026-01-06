@@ -44,9 +44,9 @@
 
 	<div class="flex items-center justify-center gap-6">
 		<!-- Time Signature Display -->
-		<div class="relative flex flex-col items-center">
+		<div class="relative flex flex-col items-center gap-1">
 			<!-- Numerator -->
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-4">
 				<IncrementButton
 					direction="decrement"
 					onClick={onNumeratorDecrement}
@@ -55,7 +55,7 @@
 				/>
 
 				<div
-					class={containerClasses(true)}
+					class={`${containerClasses(true)} min-w-12`}
 					role="status"
 					aria-live="polite"
 					aria-label={`Beats per bar: ${timeSignature.beatsPerBar}`}
@@ -73,13 +73,13 @@
 				/>
 			</div>
 
-			<!-- Horizontal line (wider, closer to numbers) -->
+			<!-- Horizontal line (wider and more prominent) -->
 			<div
-				class={`my-0 h-0.5 w-32 ${theme.isDark ? 'bg-[rgb(var(--color-text-quaternary))]' : 'bg-[rgb(var(--color-text-primary))]'}`}
+				class={`my-1 h-1 w-48 rounded-full transition-colors ${theme.isDark ? 'bg-[rgb(var(--color-text-quaternary))]' : 'bg-[rgb(var(--color-text-primary))]'}`}
 			></div>
 
 			<!-- Denominator -->
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-4">
 				<IncrementButton
 					direction="decrement"
 					onClick={onDenominatorDecrement}
@@ -88,7 +88,7 @@
 				/>
 
 				<div
-					class={containerClasses(false)}
+					class={`${containerClasses(false)} min-w-12`}
 					role="status"
 					aria-live="polite"
 					aria-label={`Beat unit: ${timeSignature.beatUnit}`}
