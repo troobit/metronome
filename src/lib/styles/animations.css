@@ -50,11 +50,44 @@
     animation: slide-in var(--animation-slide-duration, 300ms) ease-out;
   }
 
+  /* Shimmer Animation - for button shine effects */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  /* Color Bounce Animation - for synchronized color changes */
+  @keyframes color-bounce {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+  }
+
+  .animate-color-bounce {
+    animation: color-bounce 10s linear infinite;
+  }
+
   /* Reduced Motion Preferences */
   @media (prefers-reduced-motion: reduce) {
     /* Disable value change and slide-in animations */
     .animate-value-change,
-    .animate-slide-in {
+    .animate-slide-in,
+    .animate-shimmer,
+    .animate-color-bounce {
       animation: none;
     }
 
