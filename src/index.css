@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import './lib/styles/theme.css';
+@import './lib/styles/animations.css';
 
 /* Time signature value change animations */
 @keyframes value-change {
@@ -22,7 +24,7 @@
     transform: scale(1);
   }
   50% {
-    transform: scale(1.6);
+    transform: scale(2.6);
   }
   100% {
     transform: scale(1.5);

@@ -2,13 +2,27 @@ import js from '@eslint/js'
 import globals from 'globals'
 import svelte from 'eslint-plugin-svelte'
 import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
 
-export default defineConfig([
-  globalIgnores(['dist']),
+export default [
   {
-    files: ['**/*.ts'],
-    extends: [js.configs.recommended, tseslint.configs.recommended],
+    ignores: ['dist/**', 'dev-dist/**', '*.config.js', '*.config.ts'],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  ...svelte.configs['flat/recommended'],
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -23,6 +37,20 @@ export default defineConfig([
         parser: tseslint.parser,
       },
     },
-    ...svelte.configs['flat/recommended'],
+    rules: {
+      'svelte/valid-compile': [
+        'error',
+        {
+          ignoreWarnings: true,
+        },
+      ],
+    },
   },
-])
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+    },
+  },
+]
