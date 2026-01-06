@@ -12,12 +12,6 @@
 </script>
 
 <div class="space-y-3">
-	<label
-		class={`text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
-	>
-		Link BPM to Time Signature
-	</label>
-
 	<button
 		onclick={() => onLinkTempoChange(!linkTempo)}
 		class={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all ${
@@ -34,6 +28,7 @@
 			? 'BPM will adjust when beat unit changes'
 			: 'BPM stays constant when beat unit changes'}
 	>
+		<span>BPM</span>
 		<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			{#if linkTempo}
 				<path
@@ -51,7 +46,7 @@
 				/>
 			{/if}
 		</svg>
-		<span>{linkTempo ? 'Linked' : 'Not Linked'}</span>
+		<span>TIME</span>
 	</button>
 
 	<p

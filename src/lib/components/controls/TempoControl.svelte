@@ -3,7 +3,6 @@
 	import ValueDisplay from '$lib/components/ui/ValueDisplay.svelte';
 	import RangeSlider from '$lib/components/ui/RangeSlider.svelte';
 	import ActionButton from '$lib/components/ui/ActionButton.svelte';
-	import { useThemeContext } from '$lib/contexts/theme.svelte';
 
 	interface Props {
 		tempo: number;
@@ -15,8 +14,6 @@
 
 	let { tempo, onTempoChange, onTapTempo, tapTimes, tapActive }: Props = $props();
 
-	const theme = useThemeContext();
-
 	const tapLabel = $derived(() => {
 		if (tapTimes.length === 0) return 'Tap Tempo';
 		if (tapTimes.length === 1) return 'Tap again...';
@@ -24,14 +21,8 @@
 	});
 </script>
 
-<div class="space-y-3">
-	<label
-		class={`text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
-	>
-		Tempo
-	</label>
-
-	<div class="flex items-center gap-3">
+<div class="space-y-1">
+	<div class="flex items-center gap-2">
 		<IncrementButton
 			direction="decrement"
 			onClick={() => onTempoChange(tempo - 1)}
