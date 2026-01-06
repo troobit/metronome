@@ -24,14 +24,8 @@
 	});
 </script>
 
-<div class="space-y-3">
-	<label
-		class={`text-sm font-medium ${theme.isDark ? 'text-[rgb(var(--color-text-tertiary))]' : 'text-[rgb(var(--color-text-secondary))]'}`}
-	>
-		Tempo
-	</label>
-
-	<div class="flex items-center gap-3">
+<div class="space-y-1">
+	<div class="flex items-center gap-2">
 		<IncrementButton
 			direction="decrement"
 			onClick={() => onTempoChange(tempo - 1)}

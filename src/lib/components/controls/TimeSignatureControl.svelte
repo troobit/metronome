@@ -32,35 +32,17 @@
 
 	const theme = useThemeContext();
 
-	const containerClasses = $derived((isNumerator: boolean) => {
-		const baseClasses =
-			'flex h-16 w-20 items-center justify-center rounded-lg border-2 transition-colors';
+	const containerClasses = (isNumerator: boolean) => {
 		const animateClass = isNumerator ? (animateNumerator ? 'animate-value-change' : '') : (animateDenominator ? 'animate-value-change' : '');
+		return `flex-1 ${animateClass}`;
+	};
 
-		if (theme.isDark) {
-			return `${baseClasses} border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface-secondary))] ${animateClass}`;
-		} else {
-			return `${baseClasses} border-[rgb(var(--color-border))] bg-white ${animateClass}`;
-		}
-	});
-
-	const valueClasses = $derived(() => {
-		return theme.isDark
-			? 'text-3xl font-bold text-[rgb(var(--color-text-primary))]'
-			: 'text-3xl font-bold text-[rgb(var(--color-text-primary))]';
-	});
+	const valueClasses = 'text-center text-3xl font-bold text-[rgb(var(--color-text-primary))]';
 </script>
 
 <div class="space-y-3">
 
 	<div class="flex items-center justify-center gap-6">
-		<!-- Treble Clef Icon -->
-		<div
-			class={`text-4xl ${theme.isDark ? 'text-[rgb(var(--color-text-quaternary))]' : 'text-[rgb(var(--color-text-quaternary))]'}`}
-		>
-			𝄞
-		</div>
-
 		<!-- Time Signature Display -->
 		<div class="relative flex flex-col items-center">
 			<!-- Numerator -->
@@ -78,7 +60,7 @@
 					aria-live="polite"
 					aria-label={`Beats per bar: ${timeSignature.beatsPerBar}`}
 				>
-					<span class={valueClasses()}>
+					<span class={valueClasses}>
 						{timeSignature.beatsPerBar}
 					</span>
 				</div>
@@ -91,9 +73,9 @@
 				/>
 			</div>
 
-			<!-- Horizontal line -->
+			<!-- Horizontal line (wider, closer to numbers) -->
 			<div
-				class={`my-1 h-0.5 w-20 ${theme.isDark ? 'bg-[rgb(var(--color-text-quaternary))]' : 'bg-[rgb(var(--color-text-primary))]'}`}
+				class={`my-0 h-0.5 w-32 ${theme.isDark ? 'bg-[rgb(var(--color-text-quaternary))]' : 'bg-[rgb(var(--color-text-primary))]'}`}
 			></div>
 
 			<!-- Denominator -->
@@ -111,7 +93,7 @@
 					aria-live="polite"
 					aria-label={`Beat unit: ${timeSignature.beatUnit}`}
 				>
-					<span class={valueClasses()}>
+					<span class={valueClasses}>
 						{timeSignature.beatUnit}
 					</span>
 				</div>
@@ -125,10 +107,4 @@
 			</div>
 		</div>
 	</div>
-
-	<p
-		class={`text-center text-xs ${theme.isDark ? 'text-[rgb(var(--color-text-quaternary))]' : 'text-[rgb(var(--color-text-tertiary))]'}`}
-	>
-		{timeSignature.beatsPerBar} beats per bar, {timeSignature.beatUnit} note gets the beat
-	</p>
 </div>
