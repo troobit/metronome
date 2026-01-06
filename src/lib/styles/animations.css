@@ -1,0 +1,76 @@
+/* Animation System - Keyframes and Utilities */
+
+@layer utilities {
+  /* Value Change Animation - for time signature updates */
+  @keyframes value-change {
+    0% {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-value-change {
+    animation: value-change var(--animation-value-duration, 150ms) ease-out;
+  }
+
+  /* Beat Pulse Animation - for active beat indicators */
+  @keyframes beat-pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.6);
+    }
+    100% {
+      transform: scale(1.5);
+    }
+  }
+
+  .animate-beat-pulse {
+    animation: beat-pulse var(--animation-beat-duration, 100ms) ease-out;
+  }
+
+  /* Slide In Animation - for notifications */
+  @keyframes slide-in {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slide-in var(--animation-slide-duration, 300ms) ease-out;
+  }
+
+  /* Reduced Motion Preferences */
+  @media (prefers-reduced-motion: reduce) {
+    /* Disable value change and slide-in animations */
+    .animate-value-change,
+    .animate-slide-in {
+      animation: none;
+    }
+
+    /* Simplify beat pulse to static scale */
+    @keyframes beat-pulse {
+      0%,
+      100% {
+        transform: scale(1.5);
+      }
+    }
+
+    /* Remove all transitions for buttons and sliders */
+    button,
+    input[type='range']::-webkit-slider-thumb,
+    input[type='range']::-moz-range-thumb {
+      transition: none;
+    }
+  }
+}

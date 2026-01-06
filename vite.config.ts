@@ -1,12 +1,21 @@
 import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
+    },
+  },
+  server: {
+    host: true,
+  },
   plugins: [
-    react(),
+    svelte(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -14,8 +23,7 @@ export default defineConfig({
       manifest: {
         name: 'Metronome',
         short_name: 'Metronome',
-        description:
-          'A precise, stable metronome with iOS background audio support',
+        description: 'A clean, add free, and local metronome.',
         theme_color: '#3b82f6',
         background_color: '#ffffff',
         display: 'standalone',
