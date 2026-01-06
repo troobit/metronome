@@ -11,6 +11,7 @@ import type {
   AudioEngineState,
   AudioEngineConfig,
   BeatCallback,
+  StateChangeCallback,
   TimeSignature,
   AccentType,
 } from '../types/audio'
@@ -90,11 +91,16 @@ export class AudioEngine implements IAudioEngine {
   private _isPlaying = false
   private _volume = 0.5 // Default volume (0.0 to 1.0)
   private beatCallback: BeatCallback | null = null
+  private stateChangeCallback: StateChangeCallback | null = null
 
   // Scheduler state
   private schedulerIntervalId: number | null = null
   private nextBeatTime = 0
   private currentBeat = 0
+
+  // iOS background audio support
+  private visibilityChangeHandler: (() => void) | null = null
+  private wasPlayingBeforeHidden = false
 
   constructor(config: AudioEngineConfig) {
     this._tempo = this.clampTempo(config.tempo)
@@ -139,6 +145,15 @@ export class AudioEngine implements IAudioEngine {
     this.masterGain.gain.value = this._volume
     this.masterGain.connect(this.audioContext.destination)
 
+    // Set up AudioContext state change listener for iOS interruption handling
+    this.setupAudioContextStateMonitoring()
+
+    // Set up visibility change handler for tab switches and screen lock
+    this.setupVisibilityChangeHandler()
+
+    // Set up Media Session API for iOS background audio
+    this.setupMediaSession()
+
     // Resume context if it's suspended (some browsers auto-suspend)
     if (this.audioContext.state === 'suspended') {
       await this.audioContext.resume()
@@ -169,6 +184,9 @@ export class AudioEngine implements IAudioEngine {
       () => this.schedule(),
       SCHEDULER_INTERVAL
     )
+
+    // Update Media Session playback state
+    this.updateMediaSessionPlaybackState()
   }
 
   /**
@@ -186,6 +204,9 @@ export class AudioEngine implements IAudioEngine {
       clearInterval(this.schedulerIntervalId)
       this.schedulerIntervalId = null
     }
+
+    // Update Media Session playback state
+    this.updateMediaSessionPlaybackState()
   }
 
   /**
@@ -193,6 +214,8 @@ export class AudioEngine implements IAudioEngine {
    */
   setTempo(bpm: number): void {
     this._tempo = this.clampTempo(bpm)
+    // Update Media Session metadata to reflect new tempo
+    this.updateMediaSessionMetadata()
   }
 
   /**
@@ -200,6 +223,8 @@ export class AudioEngine implements IAudioEngine {
    */
   setTimeSignature(timeSignature: TimeSignature): void {
     this._timeSignature = this.validateTimeSignature(timeSignature)
+    // Update Media Session metadata to reflect new time signature
+    this.updateMediaSessionMetadata()
   }
 
   /**
@@ -220,10 +245,26 @@ export class AudioEngine implements IAudioEngine {
   }
 
   /**
+   * Register a callback to be called when playback state changes externally
+   */
+  onStateChange(callback: StateChangeCallback): void {
+    this.stateChangeCallback = callback
+  }
+
+  /**
    * Clean up resources
    */
   dispose(): void {
     this.stop()
+
+    // Remove visibility change handler
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler
+      )
+      this.visibilityChangeHandler = null
+    }
 
     if (this.audioContext) {
       this.audioContext.close()
@@ -329,6 +370,200 @@ export class AudioEngine implements IAudioEngine {
       : 4
 
     return { beatsPerBar, beatUnit }
+  }
+
+  /**
+   * Set up AudioContext state change monitoring for iOS interruption handling
+   * iOS can interrupt audio when another app plays audio, screen locks, etc.
+   */
+  private setupAudioContextStateMonitoring(): void {
+    if (!this.audioContext) return
+
+    this.audioContext.onstatechange = () => {
+      if (!this.audioContext) return
+
+      const newState = this.audioContext.state as AudioEngineState
+      const oldState = this._state
+      this._state = newState
+
+      console.log(`AudioContext state changed: ${oldState} → ${newState}`)
+
+      // Handle interruption or suspension
+      if (newState === 'suspended' || newState === 'interrupted') {
+        if (this._isPlaying) {
+          console.warn('Audio interrupted by iOS - stopping playback')
+
+          // Stop the scheduler but don't clear isPlaying yet
+          // This allows us to notify the UI about the interruption
+          if (this.schedulerIntervalId !== null) {
+            clearInterval(this.schedulerIntervalId)
+            this.schedulerIntervalId = null
+          }
+
+          // Update internal state
+          this._isPlaying = false
+
+          // Notify UI about the state change
+          if (this.stateChangeCallback) {
+            this.stateChangeCallback(
+              false,
+              'Audio was interrupted (screen lock, app switch, or another audio source)'
+            )
+          }
+        }
+      }
+
+      // Handle resumption - but require user gesture
+      if (newState === 'running' && oldState !== 'running') {
+        console.log('AudioContext resumed')
+
+        // Don't auto-restart playback - wait for user action
+        // The UI will handle prompting the user if needed
+      }
+    }
+  }
+
+  /**
+   * Set up visibility change handler for tab switches and screen lock
+   * Attempts to keep audio playing when page is hidden
+   */
+  private setupVisibilityChangeHandler(): void {
+    this.visibilityChangeHandler = async () => {
+      if (!this.audioContext) return
+
+      if (document.hidden) {
+        // Page is hidden (tab switch or screen lock)
+        this.wasPlayingBeforeHidden = this._isPlaying
+        console.log(`Page hidden, wasPlaying: ${this.wasPlayingBeforeHidden}`)
+
+        // Try to keep AudioContext alive (iOS may still suspend it)
+        if (this._isPlaying && this.audioContext.state === 'running') {
+          // Audio should continue in background with Media Session API
+          console.log('Attempting to maintain audio in background')
+        }
+      } else {
+        // Page is visible again
+        console.log(`Page visible, wasPlaying: ${this.wasPlayingBeforeHidden}`)
+
+        // Resume AudioContext if it was suspended
+        if (
+          this.audioContext.state === 'suspended' &&
+          this.wasPlayingBeforeHidden
+        ) {
+          try {
+            await this.audioContext.resume()
+            console.log('AudioContext resumed after page became visible')
+          } catch (error) {
+            console.error('Failed to resume AudioContext:', error)
+          }
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler)
+  }
+
+  /**
+   * Set up Media Session API for iOS background audio support
+   * This helps prevent iOS from suspending audio when screen locks or tab switches
+   */
+  private setupMediaSession(): void {
+    // Check if Media Session API is supported
+    if (!('mediaSession' in navigator)) {
+      console.log('Media Session API not supported')
+      return
+    }
+
+    // Set metadata for lock screen / notification controls
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Metronome',
+      artist: `${this._tempo} BPM`,
+      album: `${this._timeSignature.beatsPerBar}/${this._timeSignature.beatUnit}`,
+      artwork: [
+        {
+          src: '/icon-192.png',
+          sizes: '192x192',
+          type: 'image/png',
+        },
+        {
+          src: '/icon-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+        },
+      ],
+    })
+
+    // Set up action handlers for media controls
+    navigator.mediaSession.setActionHandler('play', () => {
+      console.log('Media Session: play action')
+      if (!this._isPlaying) {
+        this.start()
+        if (this.stateChangeCallback) {
+          this.stateChangeCallback(true, 'Started via media controls')
+        }
+      }
+    })
+
+    navigator.mediaSession.setActionHandler('pause', () => {
+      console.log('Media Session: pause action')
+      if (this._isPlaying) {
+        this.stop()
+        if (this.stateChangeCallback) {
+          this.stateChangeCallback(false, 'Paused via media controls')
+        }
+      }
+    })
+
+    navigator.mediaSession.setActionHandler('stop', () => {
+      console.log('Media Session: stop action')
+      if (this._isPlaying) {
+        this.stop()
+        if (this.stateChangeCallback) {
+          this.stateChangeCallback(false, 'Stopped via media controls')
+        }
+      }
+    })
+
+    // Set playback state
+    navigator.mediaSession.playbackState = 'none'
+
+    console.log('Media Session API configured')
+  }
+
+  /**
+   * Update Media Session metadata when tempo or time signature changes
+   */
+  private updateMediaSessionMetadata(): void {
+    if (!('mediaSession' in navigator)) return
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Metronome',
+      artist: `${this._tempo} BPM`,
+      album: `${this._timeSignature.beatsPerBar}/${this._timeSignature.beatUnit}`,
+      artwork: [
+        {
+          src: '/icon-192.png',
+          sizes: '192x192',
+          type: 'image/png',
+        },
+        {
+          src: '/icon-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+        },
+      ],
+    })
+  }
+
+  /**
+   * Update Media Session playback state
+   */
+  private updateMediaSessionPlaybackState(): void {
+    if (!('mediaSession' in navigator)) return
+
+    navigator.mediaSession.playbackState = this._isPlaying
+      ? 'playing'
+      : 'paused'
   }
 }
 

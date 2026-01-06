@@ -29,6 +29,22 @@
   }
 }
 
+/* Notification slide-in animation */
+@keyframes slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 300ms ease-out;
+}
+
 /* Smooth button transitions */
 button {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -109,7 +125,8 @@ input[type='range']:focus-visible::-moz-range-thumb {
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .value-animate {
+  .value-animate,
+  .animate-slide-in {
     animation: none;
   }
 

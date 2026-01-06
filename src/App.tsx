@@ -37,6 +37,11 @@ function App() {
   const tapResetTimeoutRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  // Audio interruption notification state
+  const [interruptionMessage, setInterruptionMessage] = useState<string | null>(
+    null
+  )
+
   useEffect(() => {
     // Load settings once on mount
     const settings = loadSettings()
@@ -63,6 +68,30 @@ function App() {
             ? ' (SECONDARY ACCENT)'
             : ''
       console.log(`Beat ${beatNumber}${accentLabel}`)
+    })
+
+    // Set up state change callback for iOS interruption handling
+    engineRef.current.onStateChange((isPlaying, reason) => {
+      console.log(
+        `State change from audio engine: isPlaying=${isPlaying}, reason=${reason}`
+      )
+
+      // Update UI state to match audio engine state
+      setIsPlaying(isPlaying)
+
+      if (!isPlaying) {
+        // Audio was stopped externally (e.g., iOS interruption)
+        setCurrentBeat(0)
+        setCurrentAccentType('none')
+
+        // Show notification to user
+        setInterruptionMessage(reason)
+
+        // Auto-dismiss notification after 8 seconds
+        setTimeout(() => {
+          setInterruptionMessage(null)
+        }, 8000)
+      }
     })
 
     // Cleanup on unmount
@@ -389,6 +418,49 @@ function App() {
           : 'bg-linear-to-br from-blue-50 to-indigo-100'
       }`}
     >
+      {/* Audio Interruption Notification */}
+      {interruptionMessage && (
+        <div className="fixed top-4 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-lg bg-yellow-500 p-4 text-white shadow-2xl animate-slide-in max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 flex-1">
+            <svg
+              className="h-6 w-6 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <div>
+              <p className="font-semibold text-sm">Audio Interrupted</p>
+              <p className="text-xs mt-1 opacity-90">{interruptionMessage}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setInterruptionMessage(null)}
+            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-yellow-600 transition-colors flex-shrink-0"
+            aria-label="Dismiss notification"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
       <div
         className={`relative w-full max-w-md space-y-6 rounded-2xl p-8 shadow-2xl transition-colors duration-300 ${
           isDarkMode ? 'bg-gray-800' : 'bg-white'

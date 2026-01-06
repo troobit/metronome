@@ -1,7 +1,7 @@
 # Metronome App — Development Plan
 
 **Last Updated:** 2026-01-06
-**Current Phase:** Phase 7 — PWA (Offline)
+**Current Phase:** Phase 7 — iOS Background Audio & State Synchronization
 **Repository:** <https://github.com/troobit/metronome>
 
 ---
@@ -161,7 +161,101 @@ The project foundation, core UI, persistence, and deployment pipeline are fully 
   - Quick switching between presets
   - Optional practice session history
 
-### Phase 7 — PWA (Offline)
+### Phase 7 — iOS Background Audio & State Synchronization 🚨 HIGH PRIORITY
+
+**Status:** Pending
+**Priority:** Critical mobile UX issue
+
+#### Problem Statement
+
+The metronome has critical iOS issues that severely impact mobile usability:
+
+1. **Audio Interruption**: Audio stops when:
+   - User switches browser tabs
+   - Browser loses window focus
+   - Device screen is locked
+
+2. **State Desynchronization**: When iOS silently stops audio (e.g., screen lock), the app's internal state remains "playing," causing:
+   - Incorrect UI play/pause state
+   - Start/stop button becomes non-functional
+   - Requires force-refresh to recover
+
+This is a critical UX issue—requiring constant screen-on drains battery significantly, and state desync makes the app unusable after screen lock.
+
+#### Implementation Tasks
+
+- [ ] **Media Session API Integration**
+  - Register app as active audio source using `navigator.mediaSession`
+  - Set metadata (title, artist, artwork) for iOS lock screen controls
+  - Handle media session action handlers (play, pause, stop)
+
+- [ ] **AudioContext State Monitoring**
+  - Listen to `AudioContext.onstatechange` event
+  - Detect when iOS suspends/interrupts audio (state: "suspended", "interrupted")
+  - Automatically sync internal `isPlaying` state when AudioContext state changes
+  - Log state transitions for debugging
+
+- [ ] **Visibility Change Handlers**
+  - Listen to `visibilitychange` event
+  - Attempt to keep AudioContext alive during tab switches
+  - Resume AudioContext when tab becomes visible again
+
+- [ ] **State Synchronization Logic**
+  - Update internal `_isPlaying` flag when AudioContext is interrupted
+  - Notify React component when state changes externally (via callback)
+  - Ensure UI accurately reflects actual audio playback status
+  - Clear scheduler interval when audio is forcibly stopped
+
+- [ ] **User Notification for Interruptions**
+  - Display clear UI feedback when audio was interrupted
+  - Show message if manual interaction is required to resume (iOS gesture requirement)
+  - Add dismiss button for interruption notifications
+  - Gracefully handle external audio source interruptions (allow them to stop metronome)
+
+- [ ] **iOS-Specific Keep-Alive Techniques**
+  - Experiment with silent audio track or oscillator as keep-alive
+  - Test different approaches for maintaining AudioContext during screen lock
+  - Document which techniques work and battery impact
+
+- [ ] **Testing & Validation**
+  - Test on iOS Safari and Chrome on iOS
+  - Verify audio continues during tab switches
+  - Verify audio continues when browser loses focus
+  - Test screen lock behavior (continue or graceful handling)
+  - Verify stop/start button works after interruption
+  - Confirm state stays synchronized
+  - Ensure desktop functionality remains unaffected
+  - Measure battery impact
+
+- [ ] **Documentation**
+  - Update docs/AUDIO_ENGINE.md with iOS-specific behavior
+  - Document limitations and workarounds
+  - Add troubleshooting section for iOS audio issues
+
+#### Technical Notes
+
+- iOS AudioContext states: "running", "suspended", "closed", "interrupted" (iOS-specific)
+- `navigator.mediaSession` helps prevent OS-level audio interruption
+- AudioContext may require user gesture to resume after interruption
+- When iOS interrupts with another audio source, allow it (stop metronome gracefully)
+- Silent audio tracks may help keep-alive but have battery implications
+- All iOS-specific code should be conditional to avoid affecting desktop
+
+#### Acceptance Criteria
+
+- ✅ Audio continues uninterrupted when switching tabs
+- ✅ Audio continues when browser loses focus
+- ✅ Audio continues when screen is locked (or gracefully handles iOS limitations)
+- ✅ App state correctly reflects actual audio playback status after screen lock/unlock
+- ✅ Stop/start button functions correctly after audio interruption
+- ✅ User is notified if manual interaction is required to resume audio
+- ✅ Battery impact is minimized (no unnecessary wake locks or polling)
+- ✅ Graceful fallback if background audio is unsupported
+- ✅ Desktop functionality remains unaffected
+
+---
+
+### Phase 8 — PWA (Offline)
 
 - [ ] Install and configure `vite-plugin-pwa`
   - `registerType: 'autoUpdate'`
@@ -170,10 +264,13 @@ The project foundation, core UI, persistence, and deployment pipeline are fully 
 - [ ] Create `public/` icons (192/512 + apple-touch)
 - [ ] Verify offline after first load (`pnpm run build` + `pnpm run preview`)
 
-## Acceptance Criteria
+---
+
+## Overall Acceptance Criteria
 
 - Metronome audio timing is stable across UI load and window interactions
-- UI reflects beats (may lag slightly, but doesn’t affect audio accuracy)
+- UI reflects beats (may lag slightly, but doesn't affect audio accuracy)
 - Settings persist across sessions; presets persist when IndexedDB is available
 - Export/Import JSON works
+- iOS background audio works or gracefully handles interruptions with proper state sync
 - PWA installs and works offline after first load

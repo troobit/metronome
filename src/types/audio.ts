@@ -10,12 +10,16 @@ export type AccentType = 'primary' | 'secondary' | 'none'
 /** Callback fired on each beat for UI synchronization */
 export type BeatCallback = (beatNumber: number, accentType: AccentType) => void
 
+/** Callback fired when playback state changes externally (e.g., iOS interruption) */
+export type StateChangeCallback = (isPlaying: boolean, reason: string) => void
+
 /** Audio engine state */
 export type AudioEngineState =
   | 'uninitialized'
   | 'suspended'
   | 'running'
   | 'closed'
+  | 'interrupted' // iOS-specific state
 
 /** Time signature configuration */
 export interface TimeSignature {
@@ -60,6 +64,8 @@ export interface IAudioEngine {
   setVolume(volume: number): void
   /** Set beat callback for UI synchronization */
   onBeat(callback: BeatCallback): void
+  /** Set state change callback for external interruptions */
+  onStateChange(callback: StateChangeCallback): void
   /** Clean up resources */
   dispose(): void
 }

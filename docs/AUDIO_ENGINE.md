@@ -198,6 +198,194 @@ To validate timing accuracy:
 
 Expected result: Inter-click intervals should vary by less than ±1ms even under load.
 
+## iOS Background Audio & State Synchronization
+
+### Problem: iOS Audio Interruption
+
+iOS Safari aggressively manages audio playback to optimize battery life and respect user intent. The metronome faces two critical issues on iOS:
+
+1. **Audio Interruption:** iOS stops audio when:
+   - Screen locks
+   - Browser tab switches
+   - App loses focus
+   - Another app plays audio
+
+2. **State Desynchronization:** When iOS silently stops audio, the app's internal `isPlaying` state remains true, causing:
+   - UI displays incorrect play/pause state
+   - Start/stop button becomes non-functional
+   - Requires force-refresh to recover
+
+### Solution: Media Session API + AudioContext State Monitoring
+
+_Implementation: [src/utils/audioEngine.ts:362-565](src/utils/audioEngine.ts#L362-L565)_
+
+The audio engine implements three complementary techniques:
+
+#### 1. AudioContext State Monitoring
+
+_Implementation: [src/utils/audioEngine.ts:366-411](src/utils/audioEngine.ts#L366-L411) (setupAudioContextStateMonitoring)_
+
+Listen to `AudioContext.onstatechange` to detect when iOS interrupts audio:
+
+```typescript
+this.audioContext.onstatechange = () => {
+  if (newState === 'suspended' || newState === 'interrupted') {
+    // iOS stopped audio - sync internal state
+    this._isPlaying = false
+    // Notify UI via callback
+    this.stateChangeCallback(false, 'Audio was interrupted...')
+  }
+}
+```
+
+**AudioContext States:**
+
+- `running`: Audio is playing
+- `suspended`: Audio paused (tab backgrounded or system-initiated)
+- `interrupted`: iOS-specific interruption state
+- `closed`: Context has been disposed
+
+When iOS interrupts audio, the engine:
+
+1. Updates internal `_isPlaying` flag to `false`
+2. Clears the scheduler interval
+3. Notifies the React UI via `stateChangeCallback`
+4. UI displays interruption message and syncs play/pause button
+
+#### 2. Media Session API Integration
+
+_Implementation: [src/utils/audioEngine.ts:454-515](src/utils/audioEngine.ts#L454-L515) (setupMediaSession)_
+
+The Media Session API registers the app as an active audio source, helping prevent iOS from suspending audio during screen lock or tab switches:
+
+```typescript
+navigator.mediaSession.metadata = new MediaMetadata({
+  title: 'Metronome',
+  artist: '120 BPM',
+  album: '4/4',
+  artwork: [...]
+})
+
+navigator.mediaSession.setActionHandler('play', () => { ... })
+navigator.mediaSession.setActionHandler('pause', () => { ... })
+```
+
+**Benefits:**
+
+- Displays metronome controls on iOS lock screen
+- Shows tempo and time signature as metadata
+- Enables control via lock screen buttons
+- Helps iOS understand this is intentional audio playback
+
+The `playbackState` is updated whenever playback starts/stops:
+
+- `playing`: Metronome is running
+- `paused`: Metronome is stopped
+- `none`: Initial state
+
+_Updates: [src/utils/audioEngine.ts:545-561](src/utils/audioEngine.ts#L545-L561) (updateMediaSessionPlaybackState)_
+
+#### 3. Visibility Change Handling
+
+_Implementation: [src/utils/audioEngine.ts:417-448](src/utils/audioEngine.ts#L417-L448) (setupVisibilityChangeHandler)_
+
+Monitor `document.visibilitychange` to detect tab switches and attempt to maintain audio:
+
+```typescript
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    // Tab hidden - mark state for potential resume
+    this.wasPlayingBeforeHidden = this._isPlaying
+  } else {
+    // Tab visible - attempt to resume AudioContext
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume()
+    }
+  }
+})
+```
+
+**Note:** iOS may still suspend the AudioContext despite these techniques. The important part is that the app correctly detects and handles the interruption.
+
+### UI State Synchronization
+
+_Implementation: [src/App.tsx:73-93](src/App.tsx#L73-L93) (onStateChange callback)_
+
+The React UI registers a state change callback:
+
+```typescript
+engineRef.current.onStateChange((isPlaying, reason) => {
+  // Sync UI state with audio engine
+  setIsPlaying(isPlaying)
+
+  if (!isPlaying) {
+    // Show interruption notification
+    setInterruptionMessage(reason)
+  }
+})
+```
+
+When audio is interrupted, the UI:
+
+1. Updates play/pause button to reflect actual state
+2. Displays a dismissible notification explaining the interruption
+3. Auto-dismisses notification after 8 seconds
+4. Resets beat indicator
+
+### Graceful Handling of External Interruptions
+
+When another app plays audio (phone call, music app, etc.), iOS will interrupt the metronome. This is intentional and correct behavior - the metronome should yield to the external audio source.
+
+The engine does NOT attempt to:
+
+- Force audio playback when iOS wants to stop it
+- Auto-restart after interruption (requires user gesture)
+- Fight with other audio sources
+
+Instead, it gracefully:
+
+- Stops the scheduler
+- Syncs internal state
+- Notifies the user
+- Waits for explicit user action to restart
+
+### Testing on iOS
+
+To verify iOS audio persistence:
+
+1. **Screen Lock Test:**
+   - Start metronome
+   - Lock screen
+   - Verify audio continues OR notification appears
+   - Unlock and verify UI state matches playback
+
+2. **Tab Switch Test:**
+   - Start metronome
+   - Switch to another tab
+   - Verify audio continues
+   - Return to tab, verify state is correct
+
+3. **External Audio Test:**
+   - Start metronome
+   - Play music from another app
+   - Verify metronome stops gracefully
+   - Verify UI shows interruption notification
+
+4. **Battery Impact Test:**
+   - Run metronome for 30 minutes with screen locked
+   - Monitor battery drain (should be minimal)
+
+### Limitations
+
+Despite these techniques, iOS may still suspend audio in certain scenarios:
+
+- Low Power Mode active
+- Extended screen lock duration (15+ minutes)
+- System memory pressure
+- iOS updates changing behavior
+
+In all cases, the app will correctly detect the interruption and sync state, ensuring the UI never becomes desynchronized from actual playback.
+
 ## Browser Support
 
 The look-ahead scheduling pattern works in all browsers supporting Web Audio API:
@@ -205,6 +393,12 @@ The look-ahead scheduling pattern works in all browsers supporting Web Audio API
 - Chrome/Edge 35+
 - Firefox 25+
 - Safari 14+ (iOS and macOS)
+
+**iOS-Specific Features:**
+
+- Media Session API: Safari 15+ (iOS 15+)
+- AudioContext state monitoring: Safari 14.5+ (iOS 14.5+)
+- Background audio: Limited by iOS policies, best-effort
 
 ## References
 
