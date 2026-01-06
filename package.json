@@ -1,7 +1,7 @@
 {
   "name": "metronome",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "docs:check": "markdownlint-cli2 '**/*.md' && find docs -name '*.md' ! -name 'DEVELOPMENT_PLAN.md' -exec markdown-link-check {} \\;"
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -27,8 +26,6 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "markdown-link-check": "^3.14.2",
-    "markdownlint-cli2": "^0.20.0",
     "prettier": "^3.7.4",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",

@@ -1,1 +1,128 @@
 @import 'tailwindcss';
+
+/* Time signature value change animations */
+@keyframes value-change {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.value-animate {
+  animation: value-change 150ms ease-out;
+}
+
+/* Beat pulse animation */
+@keyframes beat-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1.5);
+  }
+}
+
+/* Smooth button transitions */
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom range slider styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range']::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range']::-moz-range-thumb:active {
+  transform: scale(1.1);
+}
+
+/* Dark mode range slider thumb */
+.dark input[type='range']::-webkit-slider-thumb {
+  background: linear-gradient(135deg, #60a5fa, #818cf8);
+}
+
+.dark input[type='range']::-moz-range-thumb {
+  background: linear-gradient(135deg, #60a5fa, #818cf8);
+}
+
+/* Focus visible for accessibility */
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .value-animate {
+    animation: none;
+  }
+
+  @keyframes beat-pulse {
+    0%,
+    100% {
+      transform: scale(1.5);
+    }
+  }
+
+  button,
+  input[type='range']::-webkit-slider-thumb,
+  input[type='range']::-moz-range-thumb {
+    transition: none;
+  }
+}

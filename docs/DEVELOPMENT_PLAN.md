@@ -1,6 +1,49 @@
 # Metronome App — Development Plan
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-06
+**Current Phase:** Phase 7 — PWA (Offline)
+**Repository:** <https://github.com/troobit/metronome>
+
+---
+
+## 🤖 Claude Code: How to Use This Plan
+
+**This document is YOUR source of truth for project progress and next steps.**
+
+### Your Responsibilities
+
+1. **Check this plan FIRST** when starting any work session
+2. **Update progress** after completing any phase or task
+3. **Mark checkboxes** as tasks are completed using `[x]`
+4. **Update the "Last Updated" date** whenever you modify this file
+5. **Update "Current Phase"** when transitioning to a new phase
+6. **Consult the user** before skipping or reordering phases
+
+### When to Update This Plan
+
+- ✅ After completing any checklist item
+- ✅ When starting a new phase
+- ✅ When discovering additional tasks that should be tracked
+- ✅ After major architectural decisions
+- ✅ When the user asks "what's next?" (check this plan first!)
+
+### How to Reference This Plan
+
+When the user asks about progress or next steps:
+
+```text
+"Let me check the development plan..."
+[Read DEVELOPMENT_PLAN.md]
+"According to the plan, we've completed Phases 0-3. Phase 4 (Core Audio Engine) is next."
+```
+
+### Integration with Todo System
+
+- Use TodoWrite for **intra-phase task tracking** (implementation details)
+- Use this plan for **inter-phase progress tracking** (milestones)
+- When completing a phase, update both the todos AND this plan
+
+---
 
 ## Operating Principles (Non-Negotiable)
 
@@ -27,95 +70,96 @@ Example (to be updated when files exist): [src/utils/audioEngine.ts](src/utils/a
 
 ### Required docs to create and maintain
 
-- docs/ARCHITECTURE.md
-  - Must include the Mermaid diagrams in DIAGRAMS.md
-  - Must include line links to:
-    - `AudioEngine` implementation (scheduler loop, click synthesis)
-    - app state wiring (tempo/time signature/play)
-    - persistence layer
-- docs/AUDIO_ENGINE.md
-  - Must link to the scheduler constants (lookAhead, tick interval), and the scheduling function.
-  - Must describe why JS timers jitter and why audio scheduling must use `AudioContext.currentTime`.
-- docs/STORAGE.md
-  - Must link to the localStorage keys/constants and Dexie schema definition.
-  - Must describe Export/Import flow and iOS caveats.
+- docs/ARCHITECTURE.md ✅ CREATED
+  - ✅ Includes system overview Mermaid diagram
+  - ✅ Updated with actual implementation details
+- docs/AUDIO_ENGINE.md ✅ CREATED
+  - ✅ Includes look-ahead scheduling sequence diagram and AudioContext lifecycle diagram
+  - ✅ Links to scheduler constants and implementation
+  - ✅ Describes why JS timers jitter and why audio scheduling must use `AudioContext.currentTime`
+- docs/TIME_SIGNATURES.md ✅ CREATED
+  - ✅ Documents time signature support and accent patterns
+  - ✅ Explains compound meter implementation
+- docs/CLAUDE_CODE_GUIDE.md ✅ CREATED
+  - Comprehensive guide for using Claude Code with this project
+  - Explains agent system, MCP integration, and effective workflows
+- docs/STORAGE.md ✅ CREATED
+  - Documents localStorage implementation
+  - Explains export/import JSON functionality
+  - Describes future IndexedDB plans for presets
 
 ---
 
+## Progress Summary
+
+### Phases 0-6 (Core), 8 Complete
+
+The project foundation, core UI, persistence, and deployment pipeline are fully established:
+
+- **Stack:** Vite + React + TypeScript with pnpm, Tailwind CSS v4
+- **Quality:** ESLint, Prettier, CI pipeline (lint/build/format/docs checks all passing)
+- **Audio Engine:** [src/utils/audioEngine.ts](src/utils/audioEngine.ts) implements Web Audio API with look-ahead scheduling
+  - Look-ahead: 100ms window, 25ms tick interval
+  - Click synthesis: 950Hz (primary accent), 875Hz (secondary), 800Hz (regular)
+  - Time signatures: 1-99 beats per bar, power-of-2 beat units (1, 2, 4, 8, 16, 32, 64)
+  - Secondary accents for compound meters (6/8, 9/8, 12/8)
+  - Tempo linking: Optional BPM adjustment when beat unit changes
+  - Tempo range: 30-900 BPM (engine), 30-600 BPM (UI)
+  - Volume control: Master gain node (0.0-1.0)
+- **UI Features:** [src/App.tsx](src/App.tsx)
+  - Tempo controls with slider and tap tempo
+  - Time signature controls with keyboard navigation
+  - Volume control with mute button
+  - Light/dark mode with smooth transitions
+  - Visual beat grouping for compound time signatures
+  - Smooth animations and polished button interactions
+- **Persistence:** [src/utils/storage.ts](src/utils/storage.ts)
+  - localStorage for critical settings (auto-saves on change)
+  - Export/Import JSON for backup and data portability
+  - IndexedDB presets system (planned for future)
+- **Documentation:** ARCHITECTURE.md, AUDIO_ENGINE.md, TIME_SIGNATURES.md, STORAGE.md, CLAUDE_CODE_GUIDE.md all created with line links
+
 ## Phased Delivery Plan (Amalgamated)
 
-### Phase 0 — Documentation Skeleton (No code required)
+### Phase 5 — Core UI ✅ COMPLETE
 
-- [ ] Create docs/ARCHITECTURE.md (must reference DIAGRAMS.md)
-- [ ] Create docs/AUDIO_ENGINE.md (include look-ahead rationale; line links can be placeholders until code exists)
-- [ ] Create docs/STORAGE.md (include iOS strategy; line links can be placeholders until code exists)
-- [ ] Update README.md (setup + environment + how to validate)
+**Completed:** 2026-01-06
 
-### Phase 1 — Project Scaffold + CI Baseline (Pipelines green)
+- [x] App shell with tempo and time signature controls
+- [x] Beat indicator synchronized to beat callbacks with accent colors
+- [x] Start/stop button
+- [x] Mobile-first layout with touch-friendly controls (44x44px minimum)
+- [x] Tempo slider with BPM range 30-600
+- [x] Time signature controls (numerator/denominator with increment/decrement buttons)
+- [x] Tempo linking toggle (adjusts BPM when beat unit changes)
+- [x] Tap tempo (averages last 8 taps, 2s auto-reset)
+- [x] Volume control (slider with mute button, 0-100%)
+- [x] Light/dark mode toggle with smooth transitions
+- [x] Visual grouping for compound time signatures (6/8, 9/8, 12/8)
+- [x] Button and animation polish (smooth transitions, beat pulse animation)
+- [x] Docs gate: update docs/ARCHITECTURE.md with final implementation details
 
-- [ ] Decide package manager (recommend pnpm) and standardize commands (`pnpm` everywhere)
-- [ ] Scaffold Vite + React project (prefer React + TypeScript unless you explicitly want JS)
-- [ ] Add `.gitignore`
-- [ ] Add `.devcontainer/devcontainer.json` for Codespaces (Node 20+)
-- [ ] Ensure `pnpm run dev` works and is accessible via forwarded port 5173
-- [ ] Add GitHub Actions CI workflow that runs on PR/push and passes with no secrets:
-  - install deps (`pnpm install --frozen-lockfile`)
-  - `pnpm run lint` (once added)
-  - `pnpm run build`
-  - `pnpm run format:check` (once added)
-  - `pnpm run docs:check` (once added)
-- [ ] Docs gate: update README.md with “how to run lint/build/docs checks locally”
+### Phase 6 — Persistence (Tiered) ✅ CORE COMPLETE
 
-### Phase 2 — Code Quality + Docs Checking
+**Core Features Completed:** 2026-01-06
 
-- [ ] Add ESLint (flat config) and Prettier
-- [ ] Add scripts:
-  - `lint`
-  - `format`
-  - `format:check`
-  - `docs:check` (markdown lint + link check)
-- [ ] Install doc tooling (recommended):
-  - `markdownlint-cli2`
-  - `markdown-link-check`
-- [ ] Configure editor defaults (format on save, ESLint fix on save)
-- [ ] Docs gate: ensure docs reflect new scripts and conventions
+- [x] localStorage for critical settings (tempo, time signature, volume, dark mode, link tempo)
+  - Auto-saves on every change
+  - Lazy initialization on app start
+  - Graceful fallback to defaults
+- [x] Export/Import JSON (mandatory)
+  - Export to dated JSON file
+  - Import with validation
+  - UI buttons at bottom of app
+- [x] Docs gate: create docs/STORAGE.md with implementation details
+- [x] Update ARCHITECTURE.md with persistence layer
 
-### Phase 3 — Tailwind v4 Setup (Vite Plugin)
+**Future Enhancements:**
 
-- [ ] Install `tailwindcss` + `@tailwindcss/vite`
-- [ ] Add `tailwindcss()` to `vite.config.*`
-- [ ] Create `src/index.css` with `@import "tailwindcss";`
-- [ ] Verify Tailwind HMR works by changing a class in the app
-- [ ] Docs gate: update docs/ARCHITECTURE.md to link to styling entrypoints once created
-
-### Phase 4 — Core Audio Engine
-
-- [ ] Implement `AudioEngine` using Web Audio API
-  - [ ] Look-ahead scheduler: schedule ~100ms ahead, tick ~25ms
-  - [ ] Use `AudioContext.currentTime` for event times
-  - [ ] Provide accent on beat 1 (pitch or amplitude)
-  - [ ] Support tempo range 30–300 BPM
-  - [ ] Support time signature beats-per-bar 1–12
-  - [ ] Expose a beat callback for UI sync (acknowledging visual jitter)
-- [ ] Docs gate: update docs/AUDIO_ENGINE.md with file links immediately; add line links once stable
-
-### Phase 5 — Core UI
-
-- [ ] App shell (tempo, time signature, start/stop)
-- [ ] Beat indicator synchronized to beat callbacks
-- [ ] Tap tempo
-- [ ] Mobile-first layout and touch target sizing
-- [ ] Docs gate: update docs/ARCHITECTURE.md with component wiring links
-
-### Phase 6 — Persistence (Tiered)
-
-- [ ] localStorage for critical settings
-  - tempo
-  - time signature
-  - volume
-- [ ] Dexie/IndexedDB for presets (and optional history)
-- [ ] Export/Import JSON (mandatory)
-- [ ] Docs gate: update docs/STORAGE.md with schema + key definitions (file links first, line links later)
+- [ ] Dexie/IndexedDB for presets
+  - Save named configurations
+  - Quick switching between presets
+  - Optional practice session history
 
 ### Phase 7 — PWA (Offline)
 
@@ -125,17 +169,6 @@ Example (to be updated when files exist): [src/utils/audioEngine.ts](src/utils/a
   - enable `devOptions.enabled` for dev testing if desired
 - [ ] Create `public/` icons (192/512 + apple-touch)
 - [ ] Verify offline after first load (`pnpm run build` + `pnpm run preview`)
-
-### Phase 8 — Deployment Pipelines (Clean from the start)
-
-- [ ] Add a deploy workflow for the chosen target (Vercel or Azure Static Web Apps)
-- [ ] Deployment workflow must:
-  - always run build/lint/docs checks
-  - **skip deploy steps** when required secrets are missing (do not fail the workflow)
-  - run deploy only on `main` (PRs run CI only)
-- [ ] Docs gate: README.md includes how to configure required secrets and verify deployment
-
----
 
 ## Acceptance Criteria
 

@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-06
 
 ## Overview
 
@@ -40,16 +40,17 @@ flowchart TD
 
 ### Audio Engine
 
-_File: `src/utils/audioEngine.ts` (placeholder link - will be updated when implemented)_
+_File: [src/utils/audioEngine.ts](../src/utils/audioEngine.ts)_
 
 The AudioEngine is the core timing system responsible for:
 
 - Scheduling metronome clicks using Web Audio API's `AudioContext.currentTime`
 - Look-ahead scheduling (schedule ~100ms ahead, tick every ~25ms)
 - Providing beat callbacks for UI synchronization
-- Supporting tempo range of 30-300 BPM
-- Supporting time signatures with 1-12 beats per bar
-- Accenting the first beat of each bar (pitch or amplitude)
+- Supporting tempo range of 30-900 BPM (UI limits 30-600)
+- Supporting time signatures with 1-99 beats per bar and all power-of-2 beat units
+- Primary accent on beat 1 and secondary accents for compound meters
+- Master volume control via gain node (0.0-1.0)
 
 **Key Implementation Details:**
 
@@ -57,20 +58,24 @@ The AudioEngine is the core timing system responsible for:
 - Uses `AudioContext.currentTime` for precise audio scheduling (not JS timers)
 - Schedules notes that fall within the look-ahead window (currentTime + 100ms)
 - Provides callbacks to React for visual beat indicators (acknowledging potential jitter)
+- Master gain node connects to destination for global volume control
 
 See [AUDIO_ENGINE.md](AUDIO_ENGINE.md) for detailed timing rationale.
 
 ### App State Management
 
-_File: `src/App.tsx` or `src/store/` (placeholder link - will be updated when implemented)_
+_File: [src/App.tsx](../src/App.tsx)_
 
 Application state includes:
 
 - **Playback state:** playing/stopped
-- **Tempo:** 30-300 BPM (default: 120)
-- **Time signature:** beats per bar (1-12, default: 4)
-- **Volume:** 0-100% (default: 80%)
-- **Presets:** saved tempo/time signature combinations
+- **Tempo:** 30-600 BPM (default: 120)
+- **Time signature:** numerator/denominator (default: 4/4)
+- **Tempo linking:** Optional BPM adjustment when beat unit changes
+- **Volume:** 0.0-1.0 (default: 0.5)
+- **Dark mode:** Light/dark theme preference
+- **Current beat:** Visual beat indicator position (1-indexed)
+- **Tap tempo:** Timing data for tap-based tempo detection
 
 State flows unidirectionally:
 
@@ -82,62 +87,35 @@ State flows unidirectionally:
 
 ### Persistence Layer
 
-The application uses a tiered storage strategy:
+_File: [src/utils/storage.ts](../src/utils/storage.ts)_
 
-#### localStorage
+The application uses a tiered storage approach:
 
-_File: `src/utils/storage.ts` (placeholder link - will be updated when implemented)_
+**localStorage** ([src/utils/storage.ts](../src/utils/storage.ts)) - Critical settings persist automatically:
 
-Critical settings stored in localStorage:
+- Tempo, time signature, volume, dark mode, link tempo preference
+- Settings load on app initialization using lazy state initialization
+- All changes saved immediately to localStorage
+- Graceful fallback to defaults if localStorage unavailable
 
-- Last used tempo
-- Last used time signature
-- Volume setting
+**Export/Import JSON** ([src/utils/storage.ts:135-204](../src/utils/storage.ts#L135-L204)) - Data portability:
 
-#### IndexedDB (via Dexie)
+- Export current settings to dated JSON file
+- Import settings from JSON with validation
+- Provides backup and sharing functionality
+- UI integration via buttons at bottom of app
 
-_Schema: `src/db/schema.ts` (placeholder link - will be updated when implemented)_
+**IndexedDB (Future)** - For presets and history:
 
-Used for:
+- Not yet implemented
+- Will use Dexie.js wrapper
+- See [STORAGE.md](STORAGE.md) for implementation plan
 
-- Preset configurations
-- Optional practice history
-
-#### Export/Import
-
-_Implementation: `src/utils/export.ts` (placeholder link - will be updated when implemented)_
-
-JSON export/import functionality provides:
-
-- Cross-device data portability
-- Backup mechanism
-- iOS compatibility (where IndexedDB may be cleared)
-
-See [STORAGE.md](STORAGE.md) for storage strategy details.
+See [STORAGE.md](STORAGE.md) for detailed storage documentation.
 
 ### Progressive Web App (PWA)
 
-_Configuration: `vite.config.ts` and `public/manifest.json` (placeholder links)_
-
-PWA features:
-
-- Service Worker for offline functionality
-- App manifest for installability
-- Icons for home screen (192x192, 512x512, apple-touch-icon)
-- Works offline after first load
-
-### UI Components
-
-_Directory: `src/components/` (placeholder link - will be updated when implemented)_
-
-Key UI components:
-
-- **TempoControl:** Tempo slider/input and tap tempo button
-- **TimeSignatureControl:** Beats per bar selector
-- **PlaybackControls:** Start/stop button
-- **BeatIndicator:** Visual beat feedback (synchronized to audio callbacks)
-- **VolumeControl:** Master volume slider
-- **PresetManager:** Save/load/delete preset configurations
+PWA implementation pending. See [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) Phase 7.
 
 ## Design Principles
 
@@ -163,6 +141,39 @@ Audio scheduling is completely independent of UI rendering. JavaScript timers ar
 - Documentation updated incrementally as code stabilizes
 - Mermaid diagrams maintained alongside implementation
 
+### User Interface
+
+_File: [src/App.tsx](../src/App.tsx)_
+
+The UI provides comprehensive control over metronome functionality:
+
+**Core Controls:**
+
+- **Play/Stop Button:** Large, prominent button for starting/stopping playback
+- **Tempo Controls:** Increment/decrement buttons, slider (30-600 BPM), and numeric display
+- **Time Signature:** Increment/decrement buttons for numerator and denominator with keyboard support
+- **Beat Indicator:** Visual display of current beat with accent colors (red=primary, green=secondary, blue=regular)
+
+**Advanced Features:**
+
+- **Tap Tempo:** [src/App.tsx:198-240](../src/App.tsx#L198-L240) - Tap repeatedly to set tempo
+  - Calculates average BPM from last 8 taps
+  - Auto-resets after 2 seconds of inactivity
+  - Visual feedback shows tap count
+- **Volume Control:** [src/App.tsx:617-700](../src/App.tsx#L617-L700) - Slider with mute button and percentage display
+  - Interactive volume icon (muted/low/high states)
+  - Range: 0-100%
+- **Tempo Linking:** Toggle to adjust BPM proportionally when beat unit changes
+- **Dark Mode:** [src/App.tsx:256-289](../src/App.tsx#L256-L289) - Theme toggle with smooth transitions
+  - Persists theme preference (implementation pending)
+  - Smooth color transitions for all UI elements
+
+**Visual Grouping:**
+
+- Compound time signatures (6/8, 9/8, 12/8) display beats in groups of 3
+- Simple time signatures show all beats in a single row
+- Visual separation helps users understand beat structure
+
 ### Styling System
 
 The application uses Tailwind CSS v4 for styling:
@@ -172,6 +183,14 @@ The application uses Tailwind CSS v4 for styling:
 - **Approach:** Utility-first CSS with Tailwind classes applied directly to components
 - **Mobile-First:** All layouts designed mobile-first with responsive breakpoints
 - **Touch Targets:** Minimum 44x44px for all interactive elements
+
+**Custom Animations:** [src/index.css](../src/index.css)
+
+- Beat pulse animation for active beat indicator
+- Value change animation for time signature updates
+- Smooth button and slider transitions
+- Custom range slider styling with gradient thumbs
+- Respects `prefers-reduced-motion` for accessibility
 
 The Tailwind Vite plugin enables:
 

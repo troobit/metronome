@@ -1,6 +1,6 @@
 # Audio Engine
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-06
 
 ## Overview
 
@@ -52,7 +52,7 @@ The scheduler runs in two concurrent loops:
 
 #### 1. Scheduler Tick (JavaScript Timer)
 
-_Implementation: `src/utils/audioEngine.ts` (placeholder - will link to scheduling function when implemented)_
+_Implementation: [src/utils/audioEngine.ts:172-188](src/utils/audioEngine.ts#L172-L188) (schedule method)_
 
 ```text
 Every 25ms:
@@ -64,15 +64,15 @@ Every 25ms:
 **Constants:**
 
 - **Tick Interval:** 25ms (scheduler loop frequency)
-  - _Link: `src/utils/audioEngine.ts#L{line}` (placeholder)_
+  - _Link: [src/utils/audioEngine.ts:19](src/utils/audioEngine.ts#L19)_
 - **Look-Ahead Time:** 100ms (scheduling window)
-  - _Link: `src/utils/audioEngine.ts#L{line}` (placeholder)_
+  - _Link: [src/utils/audioEngine.ts:16](src/utils/audioEngine.ts#L16)_
 
 The 25ms tick interval is frequent enough to catch beats with margin, but not so frequent that it wastes CPU.
 
 #### 2. Audio Event Scheduling (Web Audio API)
 
-_Implementation: `src/utils/audioEngine.ts` (placeholder - will link to click synthesis when implemented)_
+_Implementation: [src/utils/audioEngine.ts:192-220](src/utils/audioEngine.ts#L192-L220) (scheduleBeat method)_
 
 ```text
 For each beat in the look-ahead window:
@@ -96,7 +96,7 @@ Even if a scheduler tick is delayed by 20ms due to UI work, it doesn't matter—
 
 ### AudioContext Lifecycle
 
-_Implementation: `src/utils/audioEngine.ts` (placeholder - will link to init/cleanup when implemented)_
+_Implementation: [src/utils/audioEngine.ts:89-109](src/utils/audioEngine.ts#L89-L109) (init method), [src/utils/audioEngine.ts:161-170](src/utils/audioEngine.ts#L161-L170) (dispose method)_
 
 The AudioContext follows a specific lifecycle with state transitions:
 
@@ -115,40 +115,43 @@ stateDiagram-v2
 
 1. **Creation:** `new AudioContext()` when user first interacts (browser autoplay policy)
 2. **Resume:** Call `audioContext.resume()` on user gesture (required by browsers)
-3. **Suspend/Resume:** Handle page visibility changes to support background tabs
-4. **Cleanup:** Call `audioContext.close()` when done
+3. **Cleanup:** Call `audioContext.close()` when done
+
+**Note:** The metronome continues playing even when the browser tab loses focus or is backgrounded. This is intentional behavior - a metronome should keep time consistently regardless of window visibility.
 
 ### Click Sound Synthesis
 
-_Implementation: `src/utils/audioEngine.ts` (placeholder - will link to synthesis function when implemented)_
+_Implementation: [src/utils/audioEngine.ts:241-285](src/utils/audioEngine.ts#L241-L285) (scheduleBeat method)_
 
 Each click is generated using:
 
 - **OscillatorNode:** Short sine wave burst
 - **GainNode:** Volume control and envelope (attack/release)
 - **Accent Implementation:**
-  - Beat 1: Higher frequency (e.g., 1200 Hz) or higher gain
-  - Other beats: Lower frequency (e.g., 800 Hz) or lower gain
+  - Primary accent (beat 1): 950 Hz
+  - Secondary accent (compound meters): 875 Hz
+  - Regular beats: 800 Hz
 
-Duration: 50ms burst (start + 5ms decay envelope)
+Duration: 50ms burst with exponential decay envelope
 
 ### Tempo and Time Signature Support
 
-**Tempo Range:** 30–300 BPM
+**Tempo Range:** 30–900 BPM (UI limits to 30-600 BPM)
 
 - Formula: `beatInterval = 60 / tempo` (in seconds)
 - 30 BPM = 2 seconds per beat
-- 300 BPM = 0.2 seconds per beat
+- 900 BPM = 0.067 seconds per beat
 
-**Time Signature:** 1–12 beats per bar
+**Time Signature:** 1–99 beats per bar, power-of-2 beat units (1, 2, 4, 8, 16, 32, 64)
 
 - Tracks current beat number (1-based)
-- Applies accent to beat 1
+- Primary accent on beat 1
+- Secondary accents for compound meters (6/8, 9/8, 12/8)
 - Wraps to 1 after reaching beats-per-bar
 
 ### Beat Callbacks for UI Synchronization
 
-_Implementation: `src/utils/audioEngine.ts` (placeholder - will link to callback mechanism when implemented)_
+_Implementation: [src/utils/audioEngine.ts:156-159](src/utils/audioEngine.ts#L156-L159) (onBeat method), [src/utils/audioEngine.ts:207-218](src/utils/audioEngine.ts#L207-L218) (callback invocation)_
 
 The engine provides a callback fired on each beat for UI updates (e.g., beat indicator flash). This callback runs in JavaScript time and may have visual jitter, but does not affect audio accuracy.
 
@@ -171,18 +174,18 @@ When tempo or time signature changes while playing:
 
 ## Constants Reference
 
-| Constant                  | Value   | Purpose                     | Location                                         |
-| ------------------------- | ------- | --------------------------- | ------------------------------------------------ |
-| `LOOK_AHEAD_TIME`         | 100ms   | Scheduling window size      | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `SCHEDULER_TICK_INTERVAL` | 25ms    | Frequency of scheduler loop | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `CLICK_DURATION`          | 50ms    | Length of each click sound  | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `ACCENT_FREQUENCY`        | 1200 Hz | Frequency for beat 1        | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `NORMAL_FREQUENCY`        | 800 Hz  | Frequency for other beats   | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `MIN_TEMPO`               | 30 BPM  | Minimum supported tempo     | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `MAX_TEMPO`               | 300 BPM | Maximum supported tempo     | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-| `MAX_BEATS_PER_BAR`       | 12      | Maximum time signature      | `src/utils/audioEngine.ts#L{line}` (placeholder) |
-
-_Note: Line links will be updated once the implementation stabilizes._
+| Constant                     | Value   | Purpose                         | Location                                                    |
+| ---------------------------- | ------- | ------------------------------- | ----------------------------------------------------------- |
+| `SCHEDULE_AHEAD_TIME`        | 100ms   | Scheduling window size          | [src/utils/audioEngine.ts:16](src/utils/audioEngine.ts#L16) |
+| `SCHEDULER_INTERVAL`         | 25ms    | Frequency of scheduler loop     | [src/utils/audioEngine.ts:19](src/utils/audioEngine.ts#L19) |
+| `CLICK_DURATION`             | 50ms    | Length of each click sound      | [src/utils/audioEngine.ts:22](src/utils/audioEngine.ts#L22) |
+| `ACCENT_FREQUENCY`           | 950 Hz  | Frequency for beat 1            | [src/utils/audioEngine.ts:28](src/utils/audioEngine.ts#L28) |
+| `ACCENT_SECONDARY_FREQUENCY` | 875 Hz  | Frequency for secondary accents | [src/utils/audioEngine.ts:31](src/utils/audioEngine.ts#L31) |
+| `REGULAR_FREQUENCY`          | 800 Hz  | Frequency for regular beats     | [src/utils/audioEngine.ts:34](src/utils/audioEngine.ts#L34) |
+| `MIN_TEMPO`                  | 30 BPM  | Minimum supported tempo         | [src/utils/audioEngine.ts:37](src/utils/audioEngine.ts#L37) |
+| `MAX_TEMPO`                  | 900 BPM | Maximum supported tempo         | [src/utils/audioEngine.ts:38](src/utils/audioEngine.ts#L38) |
+| `MIN_BEATS_PER_BAR`          | 1       | Minimum time signature          | [src/utils/audioEngine.ts:41](src/utils/audioEngine.ts#L41) |
+| `MAX_BEATS_PER_BAR`          | 99      | Maximum time signature          | [src/utils/audioEngine.ts:42](src/utils/audioEngine.ts#L42) |
 
 ## Testing Audio Accuracy
 
@@ -211,9 +214,6 @@ The look-ahead scheduling pattern works in all browsers supporting Web Audio API
 
 ## Future Enhancements
 
-Potential improvements (not required for initial release):
-
 - **Subdivisions:** 8th notes, triplets, etc.
 - **Customizable Sounds:** User-provided samples via AudioBuffer
-- **Visual Metronome:** Flashing light for silent practice
 - **Polyrhythms:** Multiple simultaneous time signatures

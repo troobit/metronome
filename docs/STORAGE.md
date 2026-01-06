@@ -1,284 +1,256 @@
-# Storage Strategy
+# Storage & Persistence
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-06
 
 ## Overview
 
-Metronome uses a tiered storage approach to balance persistence guarantees, data richness, and iOS compatibility. Critical settings use localStorage, extended data uses IndexedDB, and a mandatory JSON export/import system provides portability and backup.
+The metronome application uses a tiered storage approach to persist user settings and data:
 
-## Tiered Storage Architecture
+1. **localStorage** - Critical settings that should persist across sessions
+2. **Export/Import JSON** - Data portability and backup
+3. **IndexedDB** - (Future) For presets and history
 
-### Tier 1: localStorage (Critical Settings)
+## localStorage
 
-_Implementation: `src/utils/storage.ts` (placeholder - will link when implemented)_
+### Implementation
 
-**Purpose:** Persistent storage for essential settings that must survive app reinstalls and iOS storage purges.
+_File: [src/utils/storage.ts](../src/utils/storage.ts)_
 
-**Keys and Values:**
+Critical settings are automatically saved to localStorage whenever they change:
 
-- `metronome:tempo` → number (30-300)
-  - _Link: `src/utils/storage.ts#L{line}` (placeholder)_
-- `metronome:timeSignature` → number (1-12)
-  - _Link: `src/utils/storage.ts#L{line}` (placeholder)_
-- `metronome:volume` → number (0-100)
-  - _Link: `src/utils/storage.ts#L{line}` (placeholder)_
+- **Tempo** (30-600 BPM)
+- **Time Signature** (numerator/denominator)
+- **Volume** (0.0-1.0)
+- **Dark Mode** (boolean)
+- **Link Tempo** (boolean)
 
-**Guarantees:**
-
-- Available in all browsers (localStorage is universally supported)
-- Survives page reloads, browser restarts, and iOS storage purges
-- Synchronous access (no async overhead for critical reads on app load)
-
-**Limitations:**
-
-- Limited to ~5-10 MB (browser-dependent)
-- No structured queries
-- String-only storage (requires JSON serialization for objects)
-
-### Tier 2: IndexedDB via Dexie (Rich Data)
-
-_Schema: `src/db/schema.ts` (placeholder - will link when implemented)_
-
-**Purpose:** Structured storage for presets and optional practice history.
-
-#### Dexie Schema
+### Storage Keys
 
 ```typescript
-// Placeholder schema - will be implemented in Phase 6
-const db = new Dexie('MetronomeDB')
-
-db.version(1).stores({
-  presets: '++id, name, tempo, timeSignature, createdAt',
-  history: '++id, tempo, timeSignature, duration, timestamp',
-})
+const STORAGE_KEYS = {
+  TEMPO: 'metronome:tempo',
+  TIME_SIGNATURE: 'metronome:timeSignature',
+  VOLUME: 'metronome:volume',
+  DARK_MODE: 'metronome:darkMode',
+  LINK_TEMPO: 'metronome:linkTempo',
+}
 ```
 
-**Preset Table:**
+### Loading Settings
 
-- `id`: Auto-increment primary key
-- `name`: User-defined preset name (string)
-- `tempo`: BPM (number)
-- `timeSignature`: Beats per bar (number)
-- `createdAt`: ISO timestamp (string)
+Settings are loaded once when the app initializes using lazy initialization:
 
-**History Table (Optional):**
+```typescript
+const [tempo, setTempo] = useState(() => loadSettings().tempo)
+```
 
-- `id`: Auto-increment primary key
-- `tempo`: BPM used (number)
-- `timeSignature`: Time signature used (number)
-- `duration`: Practice duration in seconds (number)
-- `timestamp`: ISO timestamp (string)
+This ensures settings are loaded from localStorage before the first render.
 
-**Guarantees:**
+### Saving Settings
 
-- Large storage capacity (typically 50 MB+, can request more)
-- Structured queries with indexes
-- Async/Promise-based API (via Dexie)
+Settings are saved immediately when they change:
 
-**Limitations:**
+```typescript
+const updateTempo = (newTempo: number) => {
+  const clampedTempo = clampBPM(newTempo, 30, 600)
+  setTempo(clampedTempo)
+  saveTempoToStorage(clampedTempo) // Save to localStorage
+  if (engineRef.current) {
+    engineRef.current.setTempo(clampedTempo)
+  }
+}
+```
 
-- May be cleared on iOS in low storage conditions
-- Requires async initialization
-- Not guaranteed to persist long-term on all platforms
+### Error Handling
 
-### Tier 3: JSON Export/Import (Mandatory Portability)
+All storage operations include try/catch blocks to handle:
 
-_Implementation: `src/utils/export.ts` (placeholder - will link when implemented)_
+- localStorage not available (private browsing, quota exceeded)
+- Parsing errors (corrupted data)
+- Permission errors
 
-**Purpose:** User-controlled data portability and backup mechanism. Mandatory for iOS users.
+If localStorage fails, the app falls back to default settings without crashing.
 
-#### Export Format
+## Export/Import JSON
+
+### Export
+
+_Implementation: [src/utils/storage.ts:135-152](../src/utils/storage.ts#L135-L152)_
+
+Users can export their current settings to a JSON file:
+
+```typescript
+export function exportSettings(): void {
+  const settings = loadSettings()
+  const json = JSON.stringify(settings, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  // ... trigger download
+}
+```
+
+**File format:**
 
 ```json
 {
-  "version": "1.0",
-  "exportedAt": "2026-01-04T12:34:56.789Z",
-  "settings": {
-    "tempo": 120,
-    "timeSignature": 4,
-    "volume": 80
+  "tempo": 120,
+  "timeSignature": {
+    "beatsPerBar": 4,
+    "beatUnit": 4
   },
-  "presets": [
-    {
-      "name": "Fast Practice",
-      "tempo": 180,
-      "timeSignature": 4,
-      "createdAt": "2026-01-03T10:00:00.000Z"
-    }
-  ],
-  "history": [
-    {
-      "tempo": 120,
-      "timeSignature": 4,
-      "duration": 600,
-      "timestamp": "2026-01-04T11:00:00.000Z"
-    }
-  ]
+  "volume": 0.5,
+  "darkMode": false,
+  "linkTempo": false
 }
 ```
 
-**Export Functionality:**
-_Link: `src/utils/export.ts#L{line}` (placeholder)_
+**Filename format:** `metronome-settings-YYYY-MM-DD.json`
 
-- Triggered via UI button
-- Generates JSON file with timestamp in filename: `metronome-backup-2026-01-04.json`
-- Downloads to user's device via browser download API
+### Import
 
-**Import Functionality:**
-_Link: `src/utils/export.ts#L{line}` (placeholder)_
+_Implementation: [src/utils/storage.ts:158-204](../src/utils/storage.ts#L158-L204)_
 
-- Triggered via file picker
-- Validates JSON structure and schema version
-- Merges or replaces existing data based on user choice
-- Handles version migration if future schema changes occur
+Users can import settings from a JSON file:
 
-**Guarantees:**
+1. User selects JSON file
+2. File is validated for correct structure
+3. Settings are saved to localStorage
+4. App state is updated immediately
+5. Audio engine is reconfigured
 
-- User owns their data as a plain JSON file
-- Works on all platforms (including iOS)
-- Survives app uninstall, device change, or storage purges
-- Human-readable format for inspection/editing
+**Validation:**
 
-## iOS Storage Considerations
+The import function validates:
 
-### The Problem
+- All required fields are present
+- Types are correct (numbers, booleans, objects)
+- Time signature structure is valid
 
-iOS Safari and PWAs have aggressive storage limits:
+If validation fails, the import is rejected with a clear error message.
 
-1. **IndexedDB Eviction:** May be cleared after 7 days of inactivity or when storage is low
-2. **50 MB Quota:** Default quota is stricter than desktop
-3. **No Persistent Storage API:** The `navigator.storage.persist()` API is not supported on iOS
+## UI Integration
 
-### The Solution
+_File: [src/App.tsx:805-864](../src/App.tsx#L805-L864)_
 
-1. **Critical Settings in localStorage:**
-   - localStorage is more durable on iOS than IndexedDB
-   - Last-used tempo, time signature, and volume always restore
+Export/import buttons are located at the bottom of the UI:
 
-2. **Mandatory Export/Import:**
-   - Users must be able to export before uninstalling or when switching devices
-   - UI should prompt export periodically (e.g., "Back up your presets")
-   - Import restores full state including presets and history
+- **Export** - Downloads current settings as JSON
+- **Import** - Opens file picker to select JSON file
 
-3. **Graceful Degradation:**
-   - App works without IndexedDB (no presets, but core functionality intact)
-   - Display warning if IndexedDB is unavailable or has been cleared
-
-## Storage Initialization Flow
-
-_Implementation: `src/utils/storage.ts` (placeholder - will link when implemented)_
-
-```typescript
-async function initStorage() {
-  // 1. Load critical settings from localStorage (synchronous)
-  const tempo = localStorage.getItem('metronome:tempo') ?? '120'
-  const timeSignature = localStorage.getItem('metronome:timeSignature') ?? '4'
-  const volume = localStorage.getItem('metronome:volume') ?? '80'
-
-  // 2. Initialize IndexedDB (async, may fail)
-  try {
-    await db.open()
-    const presets = await db.presets.toArray()
-    return { tempo, timeSignature, volume, presets }
-  } catch (error) {
-    // IndexedDB unavailable or blocked
-    console.warn('IndexedDB unavailable, running without presets')
-    return { tempo, timeSignature, volume, presets: [] }
-  }
-}
-```
-
-**Key Points:**
-
-- Critical settings load immediately (synchronous)
-- IndexedDB loads in background (async)
-- App is functional even if IndexedDB fails
-
-## Data Persistence Rules
-
-### When to Write to localStorage
-
-_Implementation: `src/utils/storage.ts` (placeholder - will link to save functions when implemented)_
-
-Update localStorage immediately when:
-
-- Tempo changes
-- Time signature changes
-- Volume changes
-
-Use debouncing for high-frequency updates (e.g., dragging a slider).
-
-### When to Write to IndexedDB
-
-_Implementation: `src/db/schema.ts` (placeholder - will link to DB operations when implemented)_
-
-Update IndexedDB when:
-
-- User saves a preset
-- User deletes a preset
-- User updates a preset name
-- Practice session ends (if history tracking is enabled)
-
-No debouncing needed—these are explicit user actions.
-
-### When to Prompt for Export
-
-Prompt user to export when:
-
-- Significant data exists (e.g., 5+ presets)
-- App hasn't been backed up in 30 days
-- User is on iOS (detect via user agent)
-- Before major app updates (if schema changes are planned)
-
-## Storage Quota Management
-
-Check available storage on app load:
-
-```typescript
-if ('storage' in navigator && 'estimate' in navigator.storage) {
-  const estimate = await navigator.storage.estimate()
-  const percentUsed = (estimate.usage / estimate.quota) * 100
-
-  if (percentUsed > 80) {
-    // Warn user that storage is nearly full
-  }
-}
-```
-
-_Implementation: `src/utils/storage.ts#L{line}` (placeholder)_
-
-## Testing Storage Behavior
-
-### localStorage Testing
-
-1. Set tempo/volume, reload page → values persist
-2. Close browser, reopen → values persist
-3. Clear site data → values reset to defaults
-
-### IndexedDB Testing
-
-1. Save presets, reload → presets persist
-2. Close browser, reopen → presets persist
-3. Simulate iOS storage purge (manually delete IndexedDB) → presets lost, but app works
-
-### Export/Import Testing
-
-1. Export with 10 presets → JSON file downloads
-2. Clear all data
-3. Import JSON → all presets and settings restored
-4. Export on device A, import on device B → data transfers successfully
-
-## Privacy Considerations
-
-- All data is stored locally (no server transmission)
-- Export files may contain user data; users should secure their backups
-- History tracking is optional and can be disabled
+Both buttons adapt to the current theme (light/dark mode).
 
 ## Future Enhancements
 
-Potential improvements (not required for initial release):
+### IndexedDB with Dexie.js
 
-- **Cloud Sync:** Optional Google Drive / Dropbox integration
-- **Auto-Backup:** Periodic automatic export to local file
-- **Schema Versioning:** Migration system for breaking changes
-- **Selective Export:** Export only presets or only history
+_(Not yet implemented)_
+
+Future versions will include:
+
+1. **Presets**
+   - Save named configurations
+   - Quick switching between presets
+   - Share presets via export
+
+2. **History** (Optional)
+   - Track practice sessions
+   - Statistics (total time, tempo ranges)
+   - Replay recent settings
+
+### Implementation Plan
+
+```typescript
+// Database schema (future)
+interface MetronomeDB extends Dexie {
+  presets: Dexie.Table<Preset, number>
+  history: Dexie.Table<HistoryEntry, number>
+}
+
+interface Preset {
+  id?: number
+  name: string
+  tempo: number
+  timeSignature: TimeSignature
+  volume: number
+  createdAt: Date
+}
+```
+
+## Browser Compatibility
+
+### localStorage
+
+Supported in all target browsers:
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+
+### IndexedDB
+
+Also universally supported in target browsers.
+
+### File API
+
+Export/Import uses standard File API (Blob, FileReader) supported in all target browsers.
+
+## Data Privacy
+
+All data is stored locally in the user's browser:
+
+- No data is sent to external servers
+- Settings remain on the device
+- Users control their data via export/import
+
+## Testing
+
+To test storage functionality:
+
+1. **localStorage persistence:**
+   - Change settings
+   - Refresh the page
+   - Verify settings are restored
+
+2. **Export:**
+   - Click "Export Settings"
+   - Verify JSON file downloads
+   - Check file contents match current settings
+
+3. **Import:**
+   - Modify settings
+   - Import a previously exported file
+   - Verify settings are restored correctly
+
+4. **Error cases:**
+   - Try importing invalid JSON
+   - Try importing JSON with wrong structure
+   - Verify graceful error handling
+
+## Troubleshooting
+
+### Settings not persisting
+
+**Possible causes:**
+
+- Private browsing mode (localStorage disabled)
+- Storage quota exceeded
+- Browser extension blocking storage
+
+**Solutions:**
+
+- Use export/import as a workaround
+- Clear browser cache to free up space
+- Disable interfering extensions
+
+### Import fails
+
+**Common issues:**
+
+- Invalid JSON format
+- Missing required fields
+- Wrong data types
+
+**Solutions:**
+
+- Verify JSON is valid
+- Compare with a freshly exported file
+- Check error message for details

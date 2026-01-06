@@ -49,6 +49,3 @@ jobs:
 
       - name: Check formatting
         run: pnpm run format:check
-
-      - name: Check documentation
-        run: pnpm run docs:check

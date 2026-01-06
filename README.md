@@ -5,13 +5,9 @@ A precise, web-based metronome application built with React, TypeScript, and the
 ## Features
 
 - **Accurate Timing:** Look-ahead scheduling using Web Audio API ensures sample-accurate clicks
-- **Flexible Controls:** Tempo range 30-300 BPM, time signatures 1-12 beats per bar
-- **Tap Tempo:** Set tempo by tapping a button
-- **Visual Feedback:** Beat indicator synchronized to audio
-- **Preset Management:** Save and recall favorite tempo/time signature combinations
-- **Offline Support:** Progressive Web App (PWA) that works without an internet connection
+- **Flexible Controls:** Tempo range 30-600 BPM, full time signature support (1-99 beats per bar, all power-of-2 beat units)
+- **Visual Feedback:** Beat indicator synchronized to audio with compound meter accents
 - **Mobile Optimized:** Touch-friendly interface designed for phones and tablets
-- **Data Portability:** Export and import settings as JSON for backup and device transfer
 
 ## Prerequisites
 
@@ -50,6 +46,49 @@ pnpm run build
 pnpm run preview
 ```
 
+## Deployment
+
+### Deploying to Vercel
+
+This project is configured for seamless deployment to Vercel using their GitHub integration.
+
+#### Initial Setup
+
+1. **Import the project in Vercel:**
+   - Visit [vercel.com/new](https://vercel.com/new)
+   - Select "Import Git Repository"
+   - Choose this repository from your connected GitHub account
+   - Vercel will automatically detect the framework and use the configuration from [vercel.json](vercel.json)
+
+2. **Configure the project (if needed):**
+   - Framework Preset: Vite (auto-detected)
+   - Build Command: `pnpm run build` (configured in vercel.json)
+   - Output Directory: `dist` (configured in vercel.json)
+   - Install Command: `pnpm install --frozen-lockfile` (configured in vercel.json)
+
+3. **Deploy:**
+   - Click "Deploy"
+   - Vercel will build and deploy your application
+
+#### Automatic Deployments
+
+Once set up, Vercel will automatically:
+
+- Deploy the `main` branch to production on every push
+- Create preview deployments for all pull requests
+- Run the build process and quality checks
+
+#### Verifying Deployment
+
+After deployment:
+
+1. Visit your Vercel project URL
+2. Test the metronome functionality
+3. Verify the PWA installs correctly (when PWA features are implemented in Phase 7)
+4. Check that all assets load correctly
+
+**Note:** The GitHub Actions CI workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs quality checks (lint, build, format) on every push, ensuring code quality before Vercel deployment.
+
 ## Available Scripts
 
 | Script                  | Description                           |
@@ -60,7 +99,6 @@ pnpm run preview
 | `pnpm run lint`         | Run ESLint to check code quality      |
 | `pnpm run format`       | Format code with Prettier             |
 | `pnpm run format:check` | Check if code is formatted correctly  |
-| `pnpm run docs:check`   | Validate markdown documentation       |
 
 ## Running Quality Checks Locally
 
@@ -70,7 +108,6 @@ Before submitting a pull request, ensure all checks pass:
 # Run all checks
 pnpm run lint
 pnpm run format:check
-pnpm run docs:check
 pnpm run build
 ```
 
@@ -103,9 +140,9 @@ If you have Docker installed locally, you can use the same devcontainer setup:
 
 ## Documentation
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture, component overview, and system diagrams
-- [AUDIO_ENGINE.md](docs/AUDIO_ENGINE.md) - Audio timing implementation, look-ahead scheduling, and lifecycle diagrams
-- [STORAGE.md](docs/STORAGE.md) - Data persistence strategy and iOS considerations
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and component overview
+- [AUDIO_ENGINE.md](docs/AUDIO_ENGINE.md) - Audio timing implementation and look-ahead scheduling
+- [TIME_SIGNATURES.md](docs/TIME_SIGNATURES.md) - Time signature support and accent patterns
 - [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) - Phased development roadmap
 - [CLAUDE_CODE_GUIDE.md](docs/CLAUDE_CODE_GUIDE.md) - Guide to using Claude Code with this project
 
@@ -134,13 +171,11 @@ metronome/
 ├── docs/                    # Documentation
 │   ├── ARCHITECTURE.md      # System architecture
 │   ├── AUDIO_ENGINE.md      # Audio timing details
-│   ├── STORAGE.md           # Data persistence strategy
-│   ├── DIAGRAMS.md          # System diagrams
+│   ├── TIME_SIGNATURES.md   # Time signature support
 │   └── DEVELOPMENT_PLAN.md  # Development roadmap
-├── src/                     # Source code (to be created)
-│   ├── components/          # React components
-│   ├── utils/               # Utility functions
-│   └── db/                  # Database schema
+├── src/                     # Source code
+│   ├── types/               # TypeScript types
+│   └── utils/               # Utility functions
 ├── public/                  # Static assets
 └── .devcontainer/           # Codespaces configuration
 ```
