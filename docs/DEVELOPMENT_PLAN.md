@@ -1,7 +1,7 @@
 # Metronome App — Development Plan
 
 **Last Updated:** 2026-01-12
-**Current Phase:** Phase 11 — iOS Background Audio & Lock Screen Integration (IN PROGRESS)
+**Current Phase:** Phase 11 — iOS Background Audio (Web Workarounds + Native Fallback) (IN PROGRESS)
 **Repository:** <https://github.com/troobit/metronome>
 
 ---
@@ -80,6 +80,8 @@ Performance: Smaller bundle size (~30-40% reduction), faster initial load
 Reactivity: Svelte's fine-grained reactivity should improve animation smoothness
 Developer Experience: Less boilerplate, more intuitive reactivity
 Maintainability: Cleaner code with less ceremony
+
+iOS (Primary Requirement): When installed on iOS (Add to Home Screen or native wrapper), audio continues while screen-locked and backgrounded (Phase 11/12 acceptance gates)
 
 ---
 
@@ -502,6 +504,21 @@ Previous attempts to enable iOS background audio (commits `6f87f56` and `ddf8f47
 
 iOS requires specific PWA manifest configuration to recognize an app as an audio application and grant it background audio privileges.
 
+### Reality Check (Non-Negotiable Requirement vs iOS Web Limits)
+
+**Requirement:** Once installed on an Apple device, the metronome must keep ticking while:
+
+- The screen is locked
+- The user switches apps
+
+**Constraint:** iOS does not provide a standards-based, fully reliable “background execution” guarantee for web apps. In practice:
+
+- Service workers cannot play/maintain audio.
+- Web Audio can be suspended/interrupted when the PWA is backgrounded.
+- Many iOS builds require a continuously playing `HTMLAudioElement` session (often even a silent track) to keep the app recognized as an active audio source.
+
+This phase therefore plans a **web-only best-effort path** first, followed by a **guaranteed native-shell fallback** if web-only cannot meet the acceptance criteria.
+
 ### Changes Made
 
 #### 1. Updated PWA Manifest with Categories ✅
@@ -510,24 +527,109 @@ iOS requires specific PWA manifest configuration to recognize an app as an audio
 
 - **[vite.config.ts](../vite.config.ts:33):** Added `categories: ['music', 'utilities']` to PWA manifest
 
-**Why This Matters:**
+#### 2. Removed Redundant Card Layout ✅
 
-- iOS uses the `categories` field to determine app type and permissions
-- Apps in the `music` category receive background audio privileges
-- This tells iOS the app should appear in lock screen media controls
-- Without this field, iOS treats the app as a generic web app without audio privileges
+**Modified Files:**
 
-**Change:**
+- **[src/App.svelte](../src/App.svelte):** Removed `MetronomeCard` wrapper component
+- **[src/lib/components/layout/AppLayout.svelte](../src/lib/components/layout/AppLayout.svelte):** Simplified to solid background color
 
-```typescript
-manifest: {
-  // ... other fields
-  categories: ['music', 'utilities'], // Added for iOS background audio recognition
-  icons: [
-    // ... icons
-  ]
+**Changes:**
+
+- Removed card-style container with rounded corners, padding, and shadow
+- All components now positioned relative to screen size, not card container
+- Theme toggle and hamburger menu positioned absolutely in top-right corner
+- Main content area uses max-width constraint with full-width mobile support
+- Simplified background: solid gray-900 (dark) or blue-50 (light)
+
+**Benefits:**
+
+- Cleaner, more modern full-screen layout
+- Better mobile experience with direct screen positioning
+- Smaller bundle size: 27.70 KB CSS (was 29.71 KB), 74.51 KB JS (was 75.03 KB)
+- More space for content on all screen sizes
+
+#### 3. Disabled iOS Double-Tap Zoom ✅
+
+**Modified Files:**
+
+- **[index.html](../index.html:6-9):** Added `maximum-scale=1.0, user-scalable=no` to viewport meta tag
+- **[src/index.css](../src/index.css:5-17):** Added CSS to prevent double-tap zoom
+
+**Changes:**
+
+```css
+/* Prevent iOS double-tap zoom and enable fast tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea,
+a,
+[role="button"] {
+  touch-action: manipulation;
 }
 ```
+
+**Benefits:**
+
+- Tap Tempo button works instantly without 300ms delay
+- No accidental zoom when double-tapping buttons
+- Better native app feel on iOS devices
+- Faster, more responsive interactions
+
+### Work Plan (What We Do Next)
+
+#### 11.1 Reproduce + Instrument (So We Don’t Guess)
+
+- [ ] Confirm failure mode on real device(s): iOS version(s), device model(s), and whether the app was launched from Home Screen (standalone)
+- [ ] Verify whether audio stops immediately at screen lock or after a short delay
+- [ ] Add lightweight debug UX (behind a flag) to surface:
+  - [ ] `document.visibilityState` transitions
+  - [ ] `AudioContext.state` transitions (`running`/`suspended`/`interrupted`)
+  - [ ] whether Media Session is active + current playbackState
+- [ ] Record a short “repro protocol” in this plan so testing is consistent across devices
+
+#### 11.2 Web-Only Keepalive (HTML5 Audio Session)
+
+Goal: keep iOS treating the app as an active audio source even when the screen locks.
+
+- [ ] Add a tiny silent audio asset (e.g., `public/audio/silence.mp3`)
+- [ ] Add a hidden `HTMLAudioElement` keepalive that:
+  - [ ] is started **only** inside the same user gesture as “Start” (autoplay policy)
+  - [ ] loops continuously while the metronome is playing
+  - [ ] uses iOS-friendly settings (`playsInline`, `preload`, *avoid* `muted=true` if it prevents session activation; prefer near-zero volume like `0.001`)
+- [ ] Wire keepalive lifecycle to playback state:
+  - [ ] Start keepalive on metronome start
+  - [ ] Stop/pause keepalive on metronome stop
+  - [ ] Recover if the keepalive element errors or is interrupted
+- [ ] Confirm that Web Audio (oscillator clicks) continues while the keepalive is running
+
+#### 11.3 iOS PWA “Audio App” Checklist Audit
+
+- [ ] Confirm `display: standalone` + icon set appropriate for iOS
+- [ ] Verify Apple-specific meta tags are present in `index.html` if needed for installed experience:
+  - [ ] `apple-mobile-web-app-capable`
+  - [ ] `apple-mobile-web-app-status-bar-style`
+  - [ ] `apple-touch-icon`
+- [ ] Confirm manifest fields that help iOS classification are present:
+  - [ ] `categories: ['music', ...]` (already added)
+  - [ ] `name`/`short_name` tuned for lock screen
+
+#### 11.4 Lock Screen / Control Center Controls (Media Session)
+
+- [ ] Validate Media Session behavior in installed PWA mode:
+  - [ ] Metadata updates when tempo/time signature changes
+  - [ ] Action handlers remain responsive after lock/unlock cycles
+  - [ ] Playback state stays in sync when iOS interrupts audio
+
+#### 11.5 Decision Gate: Can Web-Only Meet the Requirement?
+
+- [ ] Run the “30-minute locked screen” test on at least one iOS 16+ and one iOS 17+ device
+- [ ] If web-only still fails (audio stops or is throttled), proceed to Phase 12 (native wrapper) to meet the primary requirement reliably
 
 ### Existing iOS Support (Already Implemented)
 
@@ -666,26 +768,12 @@ All testing must be done on actual iOS devices with the PWA installed.
 7. Audio continues when switching apps
 8. Interruption handling works correctly
 
+9. **Reliability gate:** audio continues for **30+ minutes** with the screen locked (installed app)
+10. **Background gate:** audio continues after switching apps for **10+ minutes** (installed app)
+
 ### Next Steps If Issues Persist
 
-If background audio still doesn't work after these changes:
-
-1. **Add Silent Audio Element**
-   - Create a hidden `<audio>` element
-   - Play a silent audio file in a loop
-   - This maintains the audio session for iOS
-
-2. **AudioContext Configuration**
-   - Investigate iOS-specific AudioContext options
-   - May need to trigger audio from user gesture differently
-
-3. **Alternative Audio Approach**
-   - Consider hybrid approach: `<audio>` element + Web Audio API
-   - Use audio element for session maintenance, Web Audio API for precise timing
-
-4. **Service Worker Investigation**
-   - Verify service worker isn't interfering with audio
-   - Check if service worker can help maintain audio session
+If background audio still doesn't work after the web-only keepalive approach, implement Phase 12 (native wrapper) to meet the requirement reliably on iOS.
 
 ### References
 
@@ -693,5 +781,45 @@ If background audio still doesn't work after these changes:
 - [MDN: Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 - [PWA Manifest Categories](https://developer.mozilla.org/en-US/docs/Web/Manifest/categories)
 - [iOS PWA Capabilities](https://developer.apple.com/documentation/webkit/safari_web_extensions)
+
+---
+
+## Phase 12: iOS Native Wrapper (Capacitor) — Guaranteed Background Audio 🧩 PLANNED
+
+**Status:** Planned (Execute only if Phase 11 web-only approach cannot meet acceptance criteria)
+
+### Motivation
+
+iOS background audio is a primary requirement. If PWA/web constraints prevent reliable background playback, a thin native shell provides the required entitlements and audio session configuration while reusing the existing web UI and audio engine.
+
+### Scope
+
+- Wrap the existing Vite/Svelte app with Capacitor
+- Enable iOS “Background Modes” for audio
+- Ensure the audio session is configured for background playback (AVAudioSession `playback`)
+- Keep Media Session metadata and UI behavior consistent
+
+### Implementation Checklist
+
+- [ ] Add Capacitor to the project and generate an iOS target
+- [ ] Configure iOS capabilities:
+  - [ ] Enable Background Modes → “Audio, AirPlay, and Picture in Picture”
+  - [ ] Ensure `UIBackgroundModes` includes `audio`
+- [ ] Configure `AVAudioSession`:
+  - [ ] Category: `playback`
+  - [ ] Mode/options appropriate for a metronome (no mixing by default unless requested)
+- [ ] Verify WKWebView audio behavior while backgrounded and screen-locked
+- [ ] Create a minimal release/testing process:
+  - [ ] Local build/run instructions for Xcode
+  - [ ] Device testing checklist (reuse Phase 11 acceptance tests)
+- [ ] Document the decision and tradeoffs in docs:
+  - [ ] Update this plan with the decision outcome
+  - [ ] Add a short “iOS background audio” doc describing why the wrapper exists (if adopted)
+
+### Success Criteria
+
+- [ ] Audio continues while screen locked for 30+ minutes
+- [ ] Audio continues after switching apps for 10+ minutes
+- [ ] Lock screen controls work reliably (play/pause, metadata)
 
 ---

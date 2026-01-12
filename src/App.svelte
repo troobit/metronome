@@ -14,7 +14,6 @@
   } from './utils/storage'
   import { createThemeContext } from './lib/contexts/theme.svelte'
   import AppLayout from './lib/components/layout/AppLayout.svelte'
-  import MetronomeCard from './lib/components/layout/MetronomeCard.svelte'
   import BeatDisplay from './lib/components/controls/BeatDisplay.svelte'
   import TempoControl from './lib/components/controls/TempoControl.svelte'
   import TimeSignatureControl from './lib/components/controls/TimeSignatureControl.svelte'
@@ -384,12 +383,18 @@
   notificationMessage={interruptionMessage}
   onNotificationDismiss={() => (interruptionMessage = null)}
 >
-  <MetronomeCard>
-    <!-- Hamburger button - visible only on mobile -->
-    <div class="mb-4 flex justify-end md:hidden">
-      <HamburgerButton isOpen={isMobileMenuOpen} onClick={() => (isMobileMenuOpen = !isMobileMenuOpen)} />
-    </div>
+  <!-- Theme toggle - visible only on desktop, positioned at top right -->
+  <div class="hidden md:block absolute top-4 right-4 z-10">
+    <ThemeToggle absolute={false} />
+  </div>
 
+  <!-- Hamburger button - visible only on mobile, positioned at top right -->
+  <div class="md:hidden absolute top-4 right-4 z-10">
+    <HamburgerButton isOpen={isMobileMenuOpen} onClick={() => (isMobileMenuOpen = !isMobileMenuOpen)} />
+  </div>
+
+  <!-- Main content container -->
+  <div class="w-full max-w-md mx-auto px-6 py-8 space-y-6">
     <BeatDisplay
       beatsPerBar={timeSignature.beatsPerBar}
       currentBeat={currentBeat}
@@ -445,7 +450,7 @@
         bind:fileInputElement={fileInputElement}
       />
     </div>
-  </MetronomeCard>
+  </div>
 
   <!-- Mobile settings overlay -->
   <MobileSettingsOverlay isOpen={isMobileMenuOpen} onClose={() => (isMobileMenuOpen = false)}>

@@ -2,6 +2,20 @@
 @import './lib/styles/theme.css';
 @import './lib/styles/animations.css';
 
+/* Prevent iOS double-tap zoom and enable fast tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
 /* Time signature value change animations */
 @keyframes value-change {
   0% {

@@ -15,7 +15,7 @@
 </script>
 
 <div
-	class={`flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-300 ${theme.isDark ? 'bg-linear-to-br from-gray-900 to-gray-800' : 'bg-linear-to-br from-blue-50 to-indigo-100'}`}
+	class={`relative flex min-h-screen flex-col items-center justify-center transition-colors duration-300 ${theme.isDark ? 'bg-gray-900' : 'bg-blue-50'}`}
 >
 	{#if notificationMessage && onNotificationDismiss}
 		<Notification message={notificationMessage} type="warning" onDismiss={onNotificationDismiss} />
