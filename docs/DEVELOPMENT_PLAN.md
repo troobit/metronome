@@ -1,7 +1,7 @@
 # Metronome App — Development Plan
 
-**Last Updated:** 2026-01-06
-**Current Phase:** Phase 10 — Mobile-First Responsive Layout (COMPLETED)
+**Last Updated:** 2026-01-12
+**Current Phase:** Phase 11 — iOS Background Audio & Lock Screen Integration (IN PROGRESS)
 **Repository:** <https://github.com/troobit/metronome>
 
 ---
@@ -481,5 +481,217 @@ AppLayout
 - Add haptic feedback for mobile interactions
 - Consider landscape optimizations for mobile devices
 - Test and optimize for tablet sizes (768px-1024px)
+
+---
+
+## Phase 11: iOS Background Audio & Lock Screen Integration 🔄 IN PROGRESS
+
+**Status:** In Progress (2026-01-12)
+
+### Motivation
+
+The metronome app needs to continue playing audio when the iOS device screen is locked or the app is in the background. iOS Safari has strict requirements for background audio, and the app must be properly configured as an audio/music PWA to appear on the lock screen media controls.
+
+### Problem Statement
+
+Previous attempts to enable iOS background audio (commits `6f87f56` and `ddf8f47`) implemented Media Session API and interruption handling, but the metronome still stops playing when:
+
+- The iOS device screen locks
+- The user switches to another app
+- The browser tab loses focus
+
+iOS requires specific PWA manifest configuration to recognize an app as an audio application and grant it background audio privileges.
+
+### Changes Made
+
+#### 1. Updated PWA Manifest with Categories ✅
+
+**Modified File:**
+
+- **[vite.config.ts](../vite.config.ts:33):** Added `categories: ['music', 'utilities']` to PWA manifest
+
+**Why This Matters:**
+
+- iOS uses the `categories` field to determine app type and permissions
+- Apps in the `music` category receive background audio privileges
+- This tells iOS the app should appear in lock screen media controls
+- Without this field, iOS treats the app as a generic web app without audio privileges
+
+**Change:**
+
+```typescript
+manifest: {
+  // ... other fields
+  categories: ['music', 'utilities'], // Added for iOS background audio recognition
+  icons: [
+    // ... icons
+  ]
+}
+```
+
+### Existing iOS Support (Already Implemented)
+
+The following iOS background audio features were already implemented in previous phases:
+
+#### Media Session API ✅
+
+**File:** [src/utils/audioEngine.ts](../src/utils/audioEngine.ts#L502-L563)
+
+- Metadata display on lock screen (title, tempo, time signature)
+- Artwork display (192x192 and 512x512 icons)
+- Action handlers for play/pause/stop from lock screen controls
+- Playback state synchronization
+
+#### Interruption Handling ✅
+
+**File:** [src/utils/audioEngine.ts](../src/utils/audioEngine.ts#L411-L456)
+
+- AudioContext state monitoring for iOS interruptions
+- Automatic playback stop when interrupted
+- UI notification when audio is interrupted
+- State change callbacks for user notification
+
+#### Visibility Change Handling ✅
+
+**File:** [src/utils/audioEngine.ts](../src/utils/audioEngine.ts#L462-L496)
+
+- Tracks when page becomes hidden (screen lock, tab switch)
+- Attempts to maintain audio session in background
+- Resumes AudioContext when page becomes visible again
+- Preserves playback state across visibility changes
+
+### Technical Details
+
+**iOS Background Audio Requirements:**
+
+1. **PWA Installation** - App must be installed via "Add to Home Screen"
+2. **Manifest Categories** - Must include `music` category (✅ Now implemented)
+3. **Media Session API** - Must set metadata and action handlers (✅ Already implemented)
+4. **Active Audio** - Must have actively playing audio (✅ Web Audio API oscillators)
+5. **Standalone Display** - Manifest must use `display: standalone` (✅ Already configured)
+
+**Web Audio API Look-Ahead Scheduling:**
+
+The metronome uses precise look-ahead scheduling with Web Audio API:
+
+- Schedules beats ~100ms ahead using `AudioContext.currentTime`
+- Oscillators create click sounds at precise intervals
+- Independent of JavaScript timer jitter
+- Should maintain timing even when page is backgrounded
+
+### Testing Requirements
+
+#### Critical Testing Note
+
+All testing must be done on actual iOS devices with the PWA installed.
+
+#### Installation Steps
+
+1. Open the deployed app in Safari on iOS device
+2. Tap the Share button
+3. Select "Add to Home Screen"
+4. Launch the app from the home screen (not from Safari)
+
+**Why Installation Is Required:**
+
+- iOS only grants background audio privileges to installed PWAs
+- Testing in Safari browser tab will NOT work for background audio
+- The app must be running in standalone mode
+
+#### Desktop and Android Baseline Testing
+
+**Desktop/Android Verification (Baseline):**
+
+- [ ] Run `pnpm build` - production build succeeds
+- [ ] Start metronome - audio plays correctly
+- [ ] Lock screen - verify media controls appear
+- [ ] Media controls work (play/pause from lock screen)
+
+**iOS Device Testing (Primary Focus):**
+
+- [ ] Install PWA via "Add to Home Screen"
+- [ ] Launch from home screen (verify standalone mode)
+- [ ] Start metronome - audio plays
+- [ ] Lock screen - verify:
+  - [ ] Audio continues playing (metronome keeps ticking)
+  - [ ] Lock screen shows media controls
+  - [ ] Media controls display: "Metronome", tempo (BPM), time signature
+  - [ ] App icon appears in media controls
+  - [ ] Play/pause buttons work from lock screen
+- [ ] Switch to another app - verify:
+  - [ ] Audio continues playing in background
+  - [ ] Can control from Control Center
+- [ ] Test interruptions:
+  - [ ] Phone call - verify audio pauses and notification appears
+  - [ ] Siri activation - verify proper handling
+  - [ ] Other audio apps - verify metronome stops appropriately
+- [ ] Return to app - verify:
+  - [ ] UI state matches audio state
+  - [ ] Can resume if interrupted
+  - [ ] All controls work normally
+
+**Edge Cases:**
+
+- [ ] Very long playback (30+ minutes) - verify audio doesn't stop
+- [ ] Low battery mode - verify behavior
+- [ ] Different iOS versions (iOS 16+, iOS 17+)
+- [ ] Different time signatures (4/4, 3/4, 6/8, etc.)
+- [ ] Different tempos (slow 60 BPM, fast 180 BPM)
+
+### Known Limitations
+
+**iOS-Specific Constraints:**
+
+- Background audio only works when PWA is installed (not in Safari browser)
+- iOS may limit background audio duration for battery conservation
+- Some iOS versions have stricter background audio policies than others
+- iOS may pause audio if device is in Low Power Mode
+
+**Potential Issues to Monitor:**
+
+- If audio still stops on lock screen, may need to add a hidden `<audio>` element in addition to Web Audio API
+- iOS sometimes requires continuous audio stream (not just scheduled oscillators)
+- May need to play a silent audio file continuously to maintain audio session
+
+### Success Criteria
+
+✅ **Phase Complete When:**
+
+1. PWA manifest updated with `categories` field
+2. Tested on real iOS device (iOS 16+)
+3. Audio continues playing when screen locks
+4. Media controls appear on lock screen
+5. Lock screen shows app name, tempo, time signature, and icon
+6. Play/pause controls work from lock screen
+7. Audio continues when switching apps
+8. Interruption handling works correctly
+
+### Next Steps If Issues Persist
+
+If background audio still doesn't work after these changes:
+
+1. **Add Silent Audio Element**
+   - Create a hidden `<audio>` element
+   - Play a silent audio file in a loop
+   - This maintains the audio session for iOS
+
+2. **AudioContext Configuration**
+   - Investigate iOS-specific AudioContext options
+   - May need to trigger audio from user gesture differently
+
+3. **Alternative Audio Approach**
+   - Consider hybrid approach: `<audio>` element + Web Audio API
+   - Use audio element for session maintenance, Web Audio API for precise timing
+
+4. **Service Worker Investigation**
+   - Verify service worker isn't interfering with audio
+   - Check if service worker can help maintain audio session
+
+### References
+
+- [MDN: Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API)
+- [MDN: Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+- [PWA Manifest Categories](https://developer.mozilla.org/en-US/docs/Web/Manifest/categories)
+- [iOS PWA Capabilities](https://developer.apple.com/documentation/webkit/safari_web_extensions)
 
 ---

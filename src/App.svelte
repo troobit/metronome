@@ -437,12 +437,6 @@
       {/snippet}
     </ActionButton>
 
-    {#if !isInitialized}
-      <p class="text-center text-xs text-[rgb(var(--color-text-quaternary))]">
-        Click Start to initialize audio (requires user interaction)
-      </p>
-    {/if}
-
     <!-- Settings panel - hidden on mobile, visible on desktop -->
     <div class="hidden md:block">
       <SettingsPanel

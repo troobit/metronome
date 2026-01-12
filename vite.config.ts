@@ -30,6 +30,7 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         orientation: 'portrait',
+        categories: ['music', 'utilities'],
         icons: [
           {
             src: 'icon-192.png',
